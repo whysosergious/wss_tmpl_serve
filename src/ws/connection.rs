@@ -5,12 +5,15 @@ use futures_util::StreamExt;
 use log::error;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap; // Import HashMap
+use std::collections::HashMap;
 use std::io::Cursor;
-use std::sync::{Arc, Mutex};
+use std::sync::{
+    atomic::{AtomicUsize, Ordering},
+    Arc, Mutex,
+};
 use tokio::sync::mpsc;
 
-use crate::cmd::nu::execute_command; // ensure this is imported :contentReference[oaicite:3]{index=3}
+use crate::cmd::nu::execute_command;
 
 #[derive(Deserialize)]
 struct ClientMessage {
@@ -22,12 +25,17 @@ struct ClientMessage {
 struct ServerMessage {
     r#type: String,
     body: String,
+    id: usize,
 }
 
 pub type Tx = mpsc::UnboundedSender<Message>;
-pub type Clients = Arc<Mutex<Vec<Tx>>>;
+pub type Clients = Arc<Mutex<HashMap<usize, Tx>>>;
+
+/// Used to assign unique IDs to clients.
+static NEXT_CLIENT_ID: AtomicUsize = AtomicUsize::new(1);
 
 async fn handle_binary_message(
+    id: usize,
     bin: Bytes,
     session: &mut Session,
     clients: &web::Data<Clients>,
@@ -58,13 +66,17 @@ async fn handle_binary_message(
             let broadcast = ServerMessage {
                 r#type: "broadcast".into(),
                 body: client_msg.body.clone(),
+                id,
             };
             broadcast.serialize(&mut Serializer::new(&mut buf))?;
             let bytes = Bytes::from(buf);
+
             let guard = clients.lock().unwrap();
-            for client in guard.iter() {
-                if let Err(e) = client.send(Message::Binary(bytes.clone())) {
-                    error!("broadcast failed: {}", e);
+            for (client_id, client) in guard.iter() {
+                if *client_id != id {
+                    if let Err(e) = client.send(Message::Binary(bytes.clone())) {
+                        error!("broadcast failed: {}", e);
+                    }
                 }
             }
         }
@@ -84,20 +96,18 @@ pub async fn handler(
     payload: web::Payload,
     clients: web::Data<Clients>,
 ) -> Result<HttpResponse, Error> {
-    // 1) Perform the WebSocket handshake & split out the session and message stream
     let (response, mut session, mut msg_stream) = handle(&req, payload)?;
     let (tx, mut rx) = mpsc::unbounded_channel();
-    clients.lock().unwrap().push(tx.clone());
+    let id = NEXT_CLIENT_ID.fetch_add(1, Ordering::Relaxed);
+    clients.lock().unwrap().insert(id, tx);
     let clients_clone = clients.clone();
 
-    // 2) Spawn the read/write loop
     actix_web::rt::spawn(async move {
         loop {
             tokio::select! {
-                // Incoming from client:
                 Some(Ok(msg)) = msg_stream.next() => match msg {
                     Message::Binary(bin) => {
-                        if handle_binary_message(bin, &mut session, &clients_clone).await.is_err() {
+                        if handle_binary_message(id, bin, &mut session, &clients_clone).await.is_err() {
                             break;
                         }
                     }
@@ -105,8 +115,6 @@ pub async fn handler(
                     Message::Ping(p)    => { let _ = session.pong(&p).await; }
                     Message::Pong(_)    | Message::Text(_) | Message::Continuation(_) | Message::Nop => {}
                 },
-
-                // Outgoing via our channel:
                 Some(out_msg) = rx.recv() => match out_msg {
                     Message::Binary(bin) => {
                         if let Err(e) = session.binary(bin).await {
@@ -125,18 +133,10 @@ pub async fn handler(
                     Message::Pong(p)  => { let _ = session.pong(&p).await; }
                     _ => {}
                 },
-
-                else => break, // both streams closed
+                else => break,
             }
         }
-
-        // 3) Clean up disconnected client
-        clients_clone
-            .lock()
-            .unwrap()
-            .retain(|c| !c.same_channel(&tx));
+        clients_clone.lock().unwrap().remove(&id);
     });
-
-    // 4) Return the handshake response
     Ok(response)
 }

@@ -1,4 +1,4 @@
-import { connectAndProvideSend } from "./ws_connection.js";
+import sh from "/src/sh.js";
 
 class WssTerminal extends HTMLElement {
   constructor() {
@@ -6,7 +6,6 @@ class WssTerminal extends HTMLElement {
     this.attachShadow({ mode: "open" });
     this.history = [];
     this.historyIndex = -1;
-    this._wsSend = null; // To store the websocket send function
 
     this.shadowRoot.innerHTML = `
             <style>
@@ -130,8 +129,11 @@ class WssTerminal extends HTMLElement {
 
   connectedCallback() {
     this.inputElement.focus();
-    globalThis.ws_send = this._wsSend = connectAndProvideSend(
-      window.location.origin + "/ws/",
+    const url = `${
+      window.location.protocol === "https:" ? "wss:" : "ws:"
+    }//${window.location.host}/ws/`;
+    sh.ws.connect(
+      url,
       this,
     );
   }
@@ -205,14 +207,10 @@ class WssTerminal extends HTMLElement {
         this.outputElement.innerHTML = "";
         break;
       default:
-        if (this._wsSend) {
-          this._wsSend(command);
-        } else {
-          this.println(
-            `WebSocket not connected. Command not sent: ${command}`,
-            "#ff0000",
-          );
-        }
+        sh.ws.send({
+          type: "cmd",
+          body: command,
+        });
         break;
     }
   }

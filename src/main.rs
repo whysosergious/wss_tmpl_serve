@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::env;
 
 use actix_files::Files;
@@ -16,7 +17,7 @@ use ws::connection::{handler, Clients};
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
     env::set_var("RUST_LOG", "info");
-    let clients: Clients = Arc::new(Mutex::new(Vec::new()));
+    let clients: Clients = Arc::new(Mutex::new(HashMap::new()));
     env_logger::init();
 
     let host = env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
