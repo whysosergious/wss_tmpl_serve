@@ -16,6 +16,7 @@ export class WssConsole extends HTMLElement {
         .log-entry {
           padding: 2px 8px;
           border-bottom: 1px solid #252526;
+          white-space: pre-wrap;
         }
         .log-error {
           color: #f48771;
@@ -26,6 +27,12 @@ export class WssConsole extends HTMLElement {
         .log-info {
           color: #75beff;
         }
+        .log-string { color: #ce9178; }
+        .log-number { color: #b5cea8; }
+        .log-boolean { color: #569cd6; }
+        .log-null, .log-undefined { color: #808080; }
+        .log-function { font-style: italic; }
+        .log-object, .log-array { white-space: pre-wrap; }
       </style>
       <div id="log-container"></div>
     `;
@@ -56,14 +63,45 @@ export class WssConsole extends HTMLElement {
     // Add to our custom console
     const entry = document.createElement("div");
     entry.className = `log-entry log-${type}`;
-    entry.textContent = args
-      .map((arg) => {
-        if (typeof arg === "object" && arg !== null) {
-          return JSON.stringify(arg, null, 2);
-        }
-        return String(arg);
-      })
-      .join(" ");
+
+    args.forEach((arg, index) => {
+      if (index > 0) {
+        entry.appendChild(document.createTextNode(' '));
+      }
+      const span = document.createElement('span');
+
+      if (typeof arg === 'string') {
+        span.className = 'log-string';
+        span.textContent = arg;
+      } else if (typeof arg === 'number') {
+        span.className = 'log-number';
+        span.textContent = String(arg);
+      } else if (typeof arg === 'boolean') {
+        span.className = 'log-boolean';
+        span.textContent = String(arg);
+      } else if (arg === null) {
+        span.className = 'log-null';
+        span.textContent = 'null';
+      } else if (arg === undefined) {
+        span.className = 'log-undefined';
+        span.textContent = 'undefined';
+      } else if (arg instanceof Error) {
+        // Errors are already colored by log-error class on entry
+        span.textContent = arg.stack || arg.message;
+        span.style.whiteSpace = 'pre-wrap';
+      } else if (typeof arg === 'function') {
+        span.className = 'log-function';
+        span.textContent = `ƒ ${arg.name}()`;
+      } else if (typeof arg === 'object') {
+        span.className = Array.isArray(arg) ? 'log-array' : 'log-object';
+        span.textContent = JSON.stringify(arg, null, 2);
+      } else {
+        span.textContent = String(arg);
+      }
+
+      entry.appendChild(span);
+    });
+
     this._logContainer.appendChild(entry);
 
     this.scrollTop = this.scrollHeight;
