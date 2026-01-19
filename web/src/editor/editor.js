@@ -1,37 +1,74 @@
 import {
+  Compartment,
+  EditorState,
   EditorView,
   basicSetup,
   javascript,
   oneDark,
-  keymap,
 } from "./pme/pme.mod.js";
+import { codeKeymap } from "./keymaps.js";
+import { typescript } from "./pme/chunks/javascript.pme.js";
+import { gen_hash } from "/src/lib.js";
+import { nord } from "./themes/nord.js";
+
+// dev
+import sh from "/src/sh.js";
+sh.editors ??= {};
+
+sh.pme = {
+  themes: {
+    nord,
+    oneDark,
+  },
+};
 
 export class WssEditor extends HTMLElement {
+  id;
+  filename = "untitled";
+  filetype = undefined;
+  path = "/";
+
   constructor() {
     super();
   }
 
-  connectedCallback() {
-    const customKeymap = keymap.of([
-      {
-        key: "Control-Enter", // Standard lowercase
-        shift: false,
-        run: (view) => {
-          const code = view.state.doc.toString();
-          try {
-            globalThis.eval(code);
-          } catch (e) {
-            console.error(e);
-          }
-          return true;
-        },
-      },
-    ]);
+  /// compartments
+  language = new Compartment();
+  theme = new Compartment();
 
-    this.view = new EditorView({
+  connectedCallback() {
+    this.id = gen_hash();
+
+    this.state = EditorState.create({
       doc: "console.log('hello');\n",
-      extensions: [customKeymap, javascript(), oneDark, basicSetup],
+      extensions: [
+        codeKeymap,
+        basicSetup,
+        this.theme.of(oneDark),
+        this.language.of(javascript({ typescript: true })),
+      ],
+    });
+    this.view = new EditorView({
+      state: this.state,
       parent: this,
+    });
+
+    sh.editors[this.id] = this;
+  }
+
+  disconnectedCallback() {
+    delete sh.editors[this.id];
+  }
+
+  setLanguage(language) {
+    this.view.dispatch({
+      effects: this.language.reconfigure(language),
+    });
+  }
+
+  setTheme(theme) {
+    this.view.dispatch({
+      effects: this.theme.reconfigure(theme),
     });
   }
 }
