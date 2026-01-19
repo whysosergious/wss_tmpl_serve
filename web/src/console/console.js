@@ -32,7 +32,6 @@ export class WssConsole extends HTMLElement {
         .log-boolean { color: #569cd6; }
         .log-null, .log-undefined { color: #808080; }
         .log-function { font-style: italic; }
-        .log-object, .log-array { white-space: pre-wrap; }
       </style>
       <div id="log-container"></div>
     `;
@@ -65,10 +64,10 @@ export class WssConsole extends HTMLElement {
     entry.className = `log-entry log-${type}`;
 
     args.forEach((arg, index) => {
-      if (index > 0) {
+      if (index > 0) { // Always add space between arguments
         entry.appendChild(document.createTextNode(' '));
       }
-      const span = document.createElement('span');
+      const span = document.createElement('span'); // Always create a span for each argument
 
       if (typeof arg === 'string') {
         span.className = 'log-string';
@@ -86,20 +85,20 @@ export class WssConsole extends HTMLElement {
         span.className = 'log-undefined';
         span.textContent = 'undefined';
       } else if (arg instanceof Error) {
-        // Errors are already colored by log-error class on entry
         span.textContent = arg.stack || arg.message;
         span.style.whiteSpace = 'pre-wrap';
       } else if (typeof arg === 'function') {
         span.className = 'log-function';
         span.textContent = `ƒ ${arg.name}()`;
-      } else if (typeof arg === 'object') {
-        span.className = Array.isArray(arg) ? 'log-array' : 'log-object';
-        span.textContent = JSON.stringify(arg, null, 2);
+      } else if (typeof arg === 'object') { // Handle objects
+        const treeView = document.createElement('wss-tree-view');
+        treeView.data = arg;
+        span.appendChild(treeView); // Append treeView inside the span
       } else {
         span.textContent = String(arg);
       }
 
-      entry.appendChild(span);
+      entry.appendChild(span); // Append the span to the log entry
     });
 
     this._logContainer.appendChild(entry);

@@ -3,6 +3,7 @@ import "/src/net/mod.js";
 import "/src/terminal/mod.js";
 import "/src/editor/mod.js";
 import "/src/console/mod.js";
+import "/src/tree-view/mod.js";
 
 const tabBar = document.querySelector(".tab-bar");
 const tabPanes = document.querySelectorAll(".tab-pane");
