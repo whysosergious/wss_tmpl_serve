@@ -3,7 +3,7 @@ import {
   HighlightStyle,
   syntaxHighlighting,
 } from "../pme/pme.mod.js";
-import { tags as t } from "https://cdn.jsdelivr.net/npm/@lezer/highlight@1/+esm";
+import { tags as t } from "../pme/lezer/highlight.js";
 
 // Colors from https://www.nordtheme.com/docs/colors-and-palettes
 // Polar Night
