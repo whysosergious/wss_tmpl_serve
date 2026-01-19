@@ -4,10 +4,15 @@ import {
   EditorView,
   basicSetup,
   javascript,
+  javascriptLanguage,
   oneDark,
+  autocompletion,
 } from "./pme/pme.mod.js";
 import { customKeymap } from "./keymaps.js";
 import { gen_hash } from "/src/lib.js";
+
+// completions
+import { globalCompletions } from "./completions.js";
 
 // themes
 import { nord } from "./themes/nord.js";
@@ -53,6 +58,8 @@ export class WssEditor extends HTMLElement {
         basicSetup,
         this.theme.of(oneDark),
         this.language.of(javascript({ typescript: true })),
+        globalCompletions,
+        autocompletion(),
       ],
     });
     this.view = new EditorView({
