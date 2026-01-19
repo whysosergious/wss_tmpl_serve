@@ -40,6 +40,9 @@ export class WssConsole extends HTMLElement {
       info: console.info.bind(console),
     };
 
+    this._og = {
+      log: console.log,
+    };
     console.log = (...args) => this._log("log", ...args);
     console.error = (...args) => this._log("error", ...args);
     console.warn = (...args) => this._log("warn", ...args);
@@ -63,8 +66,7 @@ export class WssConsole extends HTMLElement {
       .join(" ");
     this._logContainer.appendChild(entry);
 
-    // Scroll to bottom
-    this._logContainer.scrollTop = this._logContainer.scrollHeight;
+    this.scrollTop = this.scrollHeight;
   }
 }
 
