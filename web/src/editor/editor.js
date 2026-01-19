@@ -21,4 +21,4 @@ export class WssEditor extends HTMLElement {
   }
 }
 
-customElements.define("wss-editor", WssEditor);
+globalThis.customElements.define("wss-editor", WssEditor);

@@ -68,3 +68,28 @@ wss-terminal {
   display: flex;
   flex-direction: column;
 }
+
+/* Modern dark scrollbar with transparent track - Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #636363 transparent;
+}
+
+/* Modern dark scrollbar with transparent track - WebKit */
+*::-webkit-scrollbar {
+  width: 8px;
+  background: transparent;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #636363, #404040);
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #808080, #606060);
+}

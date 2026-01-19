@@ -67,3 +67,5 @@ export class WssConsole extends HTMLElement {
     this._logContainer.scrollTop = this._logContainer.scrollHeight;
   }
 }
+
+globalThis.customElements.define("wss-console", WssConsole);
