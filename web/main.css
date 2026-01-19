@@ -93,3 +93,8 @@ wss-terminal {
 *::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(180deg, #808080, #606060);
 }
+
+/* temp */
+.cm-editor {
+  height: 100%;
+}

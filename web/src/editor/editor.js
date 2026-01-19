@@ -1,22 +1,37 @@
-import { EditorView, basicSetup } from "https://esm.sh/codemirror@6.0.1";
-import { javascript } from "https://esm.sh/@codemirror/lang-javascript@6.1.9";
-import { oneDark } from "https://esm.sh/@codemirror/theme-one-dark@6.1.2";
+import {
+  EditorView,
+  basicSetup,
+  javascript,
+  oneDark,
+  keymap,
+} from "./pme/pme.mod.js";
 
 export class WssEditor extends HTMLElement {
   constructor() {
     super();
-    this.attachShadow({ mode: "open" });
   }
 
   connectedCallback() {
-    this.shadowRoot.innerHTML = `<style>
-      .cm-editor { height: 100%; }
-    </style>`;
+    const customKeymap = keymap.of([
+      {
+        key: "Control-Enter", // Standard lowercase
+        shift: false,
+        run: (view) => {
+          const code = view.state.doc.toString();
+          try {
+            globalThis.eval(code);
+          } catch (e) {
+            console.error(e);
+          }
+          return true;
+        },
+      },
+    ]);
 
-    new EditorView({
+    this.view = new EditorView({
       doc: "console.log('hello');\n",
-      extensions: [basicSetup, javascript(), oneDark],
-      parent: this.shadowRoot,
+      extensions: [customKeymap, javascript(), oneDark, basicSetup],
+      parent: this,
     });
   }
 }
