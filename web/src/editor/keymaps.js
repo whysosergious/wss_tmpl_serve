@@ -1,7 +1,8 @@
-import { keymap } from "./pme/pme.mod.js";
+import { keymap, toggleLineComment, indentWithTab } from "./pme/pme.mod.js";
 
 /// code keymaps
-export const codeKeymap = keymap.of([
+export const customKeymap = keymap.of([
+  indentWithTab,
   {
     key: "Control-Enter",
     shift: false,
@@ -14,5 +15,11 @@ export const codeKeymap = keymap.of([
       }
       return true;
     },
+  },
+
+  {
+    key: "Alt-q",
+    shift: false,
+    run: toggleLineComment,
   },
 ]);

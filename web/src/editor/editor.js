@@ -6,10 +6,14 @@ import {
   javascript,
   oneDark,
 } from "./pme/pme.mod.js";
-import { codeKeymap } from "./keymaps.js";
-import { typescript } from "./pme/chunks/javascript.pme.js";
+import { customKeymap } from "./keymaps.js";
 import { gen_hash } from "/src/lib.js";
+
+// themes
 import { nord } from "./themes/nord.js";
+import { materialDark } from "./themes/material-dark.js";
+import { gruvboxDark } from "./themes/gruvbox-dark.js";
+import { gruvboxLight } from "./themes/gruvbox-light.js";
 
 // dev
 import sh from "/src/sh.js";
@@ -19,6 +23,9 @@ sh.pme = {
   themes: {
     nord,
     oneDark,
+    materialDark,
+    gruvboxLight,
+    gruvboxDark,
   },
 };
 
@@ -42,7 +49,7 @@ export class WssEditor extends HTMLElement {
     this.state = EditorState.create({
       doc: "console.log('hello');\n",
       extensions: [
-        codeKeymap,
+        customKeymap,
         basicSetup,
         this.theme.of(oneDark),
         this.language.of(javascript({ typescript: true })),
