@@ -16,7 +16,16 @@
   <body>
     <div class="main-container">
       <wss-editor></wss-editor>
-      <wss-terminal></wss-terminal>
+      <div class="tab-container">
+        <div class="tab-bar">
+          <button class="tab-button active" data-tab="terminal">Terminal</button>
+          <button class="tab-button" data-tab="console">Console</button>
+        </div>
+        <div class="tab-content">
+          <wss-terminal class="tab-pane active" data-tab="terminal"></wss-terminal>
+          <wss-console class="tab-pane" data-tab="console"></wss-console>
+        </div>
+      </div>
     </div>
 
     <script type="module" src="./main.js"></script>
