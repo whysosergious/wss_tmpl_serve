@@ -5,11 +5,14 @@ import sh from "/src/sh.js";
 
 const ws = {
   instance: null,
+  ready: Promise.withResolvers(),
   connect: function (url, terminalInstance) {
+    this.ready = Promise.withResolvers();
     this.instance = new WebSocket(url);
 
     this.instance.onopen = () => {
       terminalInstance.println("WebSocket connected.");
+      this.ready.resolve();
     };
 
     this.instance.onmessage = async (event) => {
@@ -78,6 +81,7 @@ const ws = {
     };
 
     this.instance.onclose = () => {
+      this.ready = Promise.withResolvers();
       terminalInstance.println(
         "WebSocket disconnected. Attempting to reconnect...",
         "orange",
@@ -87,11 +91,13 @@ const ws = {
 
     this.instance.onerror = (error) => {
       terminalInstance.println(`WebSocket error: ${error.message}`, "red");
+      this.ready.reject(error);
       this.instance.close();
     };
   },
   pending: new Map(),
-  send: function (message) {
+  send: async function (message) {
+    await this.ready.promise;
     message.msg_id = gen_hash();
 
     const pending = Promise.withResolvers();
