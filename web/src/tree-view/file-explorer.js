@@ -92,14 +92,19 @@ export class WssFileExplorer extends HTMLElement {
     await sh.ws.ready.promise;
     const rootPath = this.getAttribute("root") || "/";
     const files = await this.listFiles(rootPath);
-    const rootNode = this._createNode({ name: rootPath, type: "dir" }, true);
+    const rootNode = this._createNode(
+      { name: rootPath, type: "dir" },
+      true,
+      "",
+    );
+    rootNode.dataset.path = rootPath;
     this._root.appendChild(rootNode);
-    this.renderFiles(files, rootNode.querySelector(".children"));
+    this.renderFiles(files, rootNode.querySelector(".children"), rootPath);
     rootNode.classList.add("open");
   }
 
   async listFiles(path) {
-    const cmd = `ls -a ".${path}" | to json`;
+    const cmd = `cd ".${path}" ; ls -a | to json`;
     const result = await sh.ws.send({ type: "cmd", body: cmd });
     try {
       return JSON.parse(result.body);
@@ -109,7 +114,7 @@ export class WssFileExplorer extends HTMLElement {
     }
   }
 
-  renderFiles(files, parent) {
+  renderFiles(files, parent, parentPath) {
     parent.innerHTML = "";
     files
       .sort((a, b) => {
@@ -119,17 +124,21 @@ export class WssFileExplorer extends HTMLElement {
         return a.type === "dir" ? -1 : 1;
       })
       .forEach((file) => {
-        const node = this._createNode(file);
+        const node = this._createNode(file, false, parentPath);
         parent.appendChild(node);
       });
   }
 
-  _createNode(file, isRoot = false) {
+  _createNode(file, isRoot = false, parentPath = "") {
     const isDir = isRoot || file.type === "dir";
     const name = isRoot ? file.name : file.name;
+    const path = isRoot
+      ? file.name
+      : [parentPath, file.name].join("/").replace(/\/+/g, "/");
 
     const node = document.createElement("div");
     node.className = "entry " + (isDir ? "dir" : "file");
+    node.dataset.path = path;
 
     if (isRoot) {
       node.dataset.isRoot = true;
@@ -170,45 +179,14 @@ export class WssFileExplorer extends HTMLElement {
         } else {
           node.classList.add("open");
           if (!children.hasChildNodes()) {
-            const path = this.getNodePath(node);
+            const path = node.dataset.path;
             const files = await this.listFiles(path);
-            this.renderFiles(files, children);
+            this.renderFiles(files, children, path);
           }
         }
       });
     }
     return node;
-  }
-
-  getNodePath(node) {
-    const path = [];
-    let current = node;
-    // special case for the root node
-    if (current.dataset.isRoot) {
-      return current.querySelector(".entry-name").textContent;
-    }
-
-    while (current && !current.dataset.isRoot) {
-      path.unshift(current.querySelector(".entry-name").textContent);
-      // ascend to the parent entry, skipping the 'children' container
-      const parent = current.parentElement.parentElement;
-      if (parent.classList.contains("entry")) {
-        current = parent;
-      } else {
-        // we have reached the root of the shadow dom
-        current = null;
-      }
-    }
-
-    // now current should be the root node
-    if (current && current.dataset.isRoot) {
-      path.unshift(current.querySelector(".entry-name").textContent);
-    } else {
-      // fallback to the attribute if we couldn't find the root node
-      path.unshift(this.getAttribute("root") || "/");
-    }
-
-    return path.join("/").replace(/\/+/g, "/");
   }
 }
 
