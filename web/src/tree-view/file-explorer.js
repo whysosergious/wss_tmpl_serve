@@ -38,9 +38,8 @@ export class WssFileExplorer extends HTMLElement {
         }
         .entry {
           display: flex;
-          flex-direction: column;
-          align-items: flex-start;
-          padding: 4px 0px;
+          align-items: center;
+          padding: 4px 8px;
           cursor: pointer;
           user-select: none;
           transition: background-color 0.1s ease-in-out;
@@ -66,17 +65,10 @@ export class WssFileExplorer extends HTMLElement {
           overflow: hidden;
           text-overflow: ellipsis;
         }
-        .children {
-          padding-left: 16px;
+        .entry.open > .entry-icon .closed {
           display: none;
         }
-        .entry.open > .children {
-          display: block;
-        }
-        .entry.open > .entry-header > .entry-icon .closed {
-          display: none;
-        }
-        .entry.open > .entry-header > .entry-icon .open {
+        .entry.open > .entry-icon .open {
           display: block;
         }
          .entry-icon .open {
@@ -86,21 +78,22 @@ export class WssFileExplorer extends HTMLElement {
       <div id="root"></div>
     `;
     this._root = this.shadowRoot.getElementById("root");
+    this._files = [];
   }
 
   async connectedCallback() {
     await sh.ws.ready.promise;
     const rootPath = this.getAttribute("root") || "/";
     const files = await this.listFiles(rootPath);
-    const rootNode = this._createNode(
-      { name: rootPath, type: "dir" },
-      true,
-      "",
-    );
-    rootNode.dataset.path = rootPath;
-    this._root.appendChild(rootNode);
-    this.renderFiles(files, rootNode.querySelector(".children"), rootPath);
-    rootNode.classList.add("open");
+    this._files = files
+      .map((file) => ({ ...file, depth: 0, parentPath: rootPath, open: false }))
+      .sort((a, b) => {
+        if (a.type === b.type) {
+          return a.name.localeCompare(b.name);
+        }
+        return a.type === "dir" ? -1 : 1;
+      });
+    this.render();
   }
 
   async listFiles(path) {
@@ -114,40 +107,26 @@ export class WssFileExplorer extends HTMLElement {
     }
   }
 
-  renderFiles(files, parent, parentPath) {
-    parent.innerHTML = "";
-    files
-      .sort((a, b) => {
-        if (a.type === b.type) {
-          return a.name.localeCompare(b.name);
-        }
-        return a.type === "dir" ? -1 : 1;
-      })
-      .forEach((file) => {
-        const node = this._createNode(file, false, parentPath);
-        parent.appendChild(node);
-      });
+  render() {
+    this._root.innerHTML = "";
+    this._files.forEach((file) => {
+      const node = this._createNode(file);
+      this._root.appendChild(node);
+    });
   }
 
-  _createNode(file, isRoot = false, parentPath = "") {
-    const isDir = isRoot || file.type === "dir";
-    const name = isRoot ? file.name : file.name;
-    const path = isRoot
-      ? file.name
-      : [parentPath, file.name].join("/").replace(/\/+/g, "/");
+  _createNode(file) {
+    const isDir = file.type === "dir";
+    const name = file.name;
+    const path = [file.parentPath, file.name].join("/").replace(/\/+/g, "/");
 
     const node = document.createElement("div");
     node.className = "entry " + (isDir ? "dir" : "file");
     node.dataset.path = path;
-
-    if (isRoot) {
-      node.dataset.isRoot = true;
+    node.style.paddingLeft = `${file.depth * 16 + 8}px`;
+    if (file.open) {
+      node.classList.add("open");
     }
-
-    const entryHeader = document.createElement("div");
-    entryHeader.className = "entry-header";
-    entryHeader.style.display = "flex";
-    entryHeader.style.alignItems = "center";
 
     const icon = document.createElement("span");
     icon.className = "entry-icon";
@@ -162,31 +141,57 @@ export class WssFileExplorer extends HTMLElement {
     nameSpan.className = "entry-name";
     nameSpan.textContent = name;
 
-    entryHeader.appendChild(icon);
-    entryHeader.appendChild(nameSpan);
-
-    node.appendChild(entryHeader);
+    node.appendChild(icon);
+    node.appendChild(nameSpan);
 
     if (isDir) {
-      const children = document.createElement("div");
-      children.className = "children";
-      node.appendChild(children);
-
-      entryHeader.addEventListener("click", async (e) => {
+      node.addEventListener("click", async (e) => {
         e.stopPropagation();
-        if (node.classList.contains("open")) {
-          node.classList.remove("open");
+        file.open = !file.open;
+        if (file.open) {
+          const index = this._files.findIndex(
+            (f) => f.name === file.name && f.parentPath === file.parentPath,
+          );
+          const files = await this.listFiles(path);
+          const newFiles = files
+            .map((f) => ({
+              ...f,
+              depth: file.depth + 1,
+              parentPath: path,
+              open: false,
+            }))
+            .sort((a, b) => {
+              if (a.type === b.type) {
+                return a.name.localeCompare(b.name);
+              }
+              return a.type === "dir" ? -1 : 1;
+            });
+          this._files.splice(index + 1, 0, ...newFiles);
         } else {
-          node.classList.add("open");
-          if (!children.hasChildNodes()) {
-            const path = node.dataset.path;
-            const files = await this.listFiles(path);
-            this.renderFiles(files, children, path);
-          }
+          const index = this._files.findIndex(
+            (f) => f.name === file.name && f.parentPath === file.parentPath,
+          );
+          const children = this._getChildren(file, index);
+          this._files.splice(index + 1, children.length);
         }
+
+        this.render();
       });
     }
     return node;
+  }
+
+  _getChildren(parent, parentIndex) {
+    const children = [];
+    for (let i = parentIndex + 1; i < this._files.length; i++) {
+      const file = this._files[i];
+      if (file.depth > parent.depth) {
+        children.push(file);
+      } else {
+        break;
+      }
+    }
+    return children;
   }
 }
 
