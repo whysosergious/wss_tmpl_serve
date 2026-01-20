@@ -36,6 +36,7 @@ const ws = {
         const unpackedMessages = decodeMulti(new Uint8Array(arrayBuffer));
         for (const unpacked of unpackedMessages) {
           this.pending.get(unpacked.msg_id)?.resolve(unpacked);
+          this.pending.delete(unpacked.msg_id);
 
           if (unpacked && unpacked.type === "cmd_result") {
             terminalInstance.println(unpacked.body);
