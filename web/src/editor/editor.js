@@ -57,7 +57,7 @@ export class WssEditor extends HTMLElement {
         customKeymap,
         basicSetup,
         this.theme.of(oneDark),
-        this.language.of(javascript({ typescript: true })),
+        this.language.of(javascript({ typescript: true, autocomplete: true })),
         globalCompletions,
         autocompletion(),
       ],

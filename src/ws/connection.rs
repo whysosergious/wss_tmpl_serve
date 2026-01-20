@@ -19,6 +19,7 @@ use crate::cmd::nu::execute_command;
 struct ClientMessage {
     r#type: String,
     body: String,
+    msg_id: String,
 }
 
 #[derive(Serialize)]
@@ -26,6 +27,7 @@ struct ServerMessage {
     r#type: String,
     body: String,
     id: usize,
+    msg_id: String,
 }
 
 pub type Tx = mpsc::UnboundedSender<Message>;
@@ -52,6 +54,7 @@ async fn handle_binary_message(
                     let mut reply_map = HashMap::new();
                     reply_map.insert("type".to_string(), "cmd_result".to_string());
                     reply_map.insert("body".to_string(), out);
+                    reply_map.insert("msg_id".to_string(), client_msg.msg_id);
                     reply_map.serialize(&mut Serializer::new(&mut buf))?;
                     session.binary(buf).await?;
                 }
@@ -67,6 +70,7 @@ async fn handle_binary_message(
                 r#type: "broadcast".into(),
                 body: client_msg.body.clone(),
                 id,
+                msg_id: client_msg.msg_id.clone(),
             };
             broadcast.serialize(&mut Serializer::new(&mut buf))?;
             let bytes = Bytes::from(buf);

@@ -1,4 +1,5 @@
 // web/src/net/ws.js
+import { gen_hash } from "../lib.js";
 import { encode, decodeMulti } from "/src/lib.js";
 import sh from "/src/sh.js";
 
@@ -34,6 +35,8 @@ const ws = {
       try {
         const unpackedMessages = decodeMulti(new Uint8Array(arrayBuffer));
         for (const unpacked of unpackedMessages) {
+          this.pending.get(unpacked.msg_id)?.resolve(unpacked);
+
           if (unpacked && unpacked.type === "cmd_result") {
             terminalInstance.println(unpacked.body);
           } else if (
@@ -42,7 +45,7 @@ const ws = {
             unpacked.id !== this.id
           ) {
             terminalInstance.println(
-              `BROADCAST from ${unpacked.id}: ${unpacked.body}`,
+              `BROADCAST [from:${unpacked.id}, msg_id:${unpacked.msg_id}]: ${unpacked.body}`,
               "cyan",
             );
           } else {
@@ -86,8 +89,16 @@ const ws = {
       this.instance.close();
     };
   },
+  pending: new Map(),
   send: function (message) {
+    message.msg_id = gen_hash();
+
+    const pending = Promise.withResolvers();
+    this.pending.set(message.msg_id, pending);
+
     this.instance?.send(encode(message));
+
+    return pending.promise;
   },
 };
 
