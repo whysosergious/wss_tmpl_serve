@@ -14,16 +14,28 @@
     </script>
   </head>
   <body>
-    <div class="main-container">
-      <wss-editor></wss-editor>
-      <div class="tab-container">
-        <div class="tab-bar">
-          <button class="tab-button active" data-tab="terminal">Terminal</button>
-          <button class="tab-button" data-tab="console">Console</button>
+    <div class="main-layout-container">
+      <div class="file-explorer-container collapsed">
+        <div class="file-explorer-header">
+          <button id="toggle-file-explorer">FE</button>
         </div>
-        <div class="tab-content">
-          <wss-terminal class="tab-pane active" data-tab="terminal"></wss-terminal>
-          <wss-console class="tab-pane" data-tab="console"></wss-console>
+        <div class="file-explorer-content">
+          <!-- File explorer content will go here -->
+        </div>
+      </div>
+      <div class="resizer right-resizer" id="right-resizer"></div>
+      <div class="editor-terminal-container">
+        <wss-editor></wss-editor>
+        <div class="resizer" id="bottom-resizer"></div>
+        <div class="tab-container terminal-console-container">
+          <div class="tab-bar">
+            <button class="tab-button active" data-tab="terminal">Terminal</button>
+            <button class="tab-button" data-tab="console">Console</button>
+          </div>
+          <div class="tab-content">
+            <wss-terminal class="tab-pane active" data-tab="terminal"></wss-terminal>
+            <wss-console class="tab-pane" data-tab="console"></wss-console>
+          </div>
         </div>
       </div>
     </div>
