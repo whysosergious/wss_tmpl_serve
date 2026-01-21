@@ -35,9 +35,9 @@ export class WssTabs extends HTMLElement {
     }
   }
 
-  addTab(name = "untitled", initialContent = "") {
+  addTab(id, name = "untitled", initialContent = "") { // New signature with id
     const tab = {
-      id: Date.now(),
+      id: id || Date.now(), // Use provided id, or fallback
       name,
     };
     this._tabs.push(tab);

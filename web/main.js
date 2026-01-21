@@ -32,24 +32,24 @@ document.addEventListener("DOMContentLoaded", () => {
   const savedTab = localStorage.getItem("activeTab") || "terminal";
   switchTab(savedTab);
 
-  // Resizing logic (Vertical - for Terminal/Editor)
-  const editor = document.querySelector("wss-editor");
+  // Resizing logic (Vertical - for Terminal/Workspace)
+  const workspaceElement = document.querySelector("wss-workspace");
   const terminalConsoleContainer = document.querySelector(
     ".terminal-console-container",
   );
   const bottomResizer = document.getElementById("bottom-resizer");
 
-  const MIN_HEIGHT = 50; // Minimum height in pixels for both editor and terminal
+  const MIN_HEIGHT = 50; // Minimum height in pixels for both workspace and terminal
 
   let isResizing = false;
   let lastY;
-  let editorInitialHeight;
+  let workspaceInitialHeight;
   let terminalInitialHeight;
 
   function startResize(e) {
     isResizing = true;
     lastY = e.clientY;
-    editorInitialHeight = editor.offsetHeight;
+    workspaceInitialHeight = workspaceElement.offsetHeight;
     terminalInitialHeight = terminalConsoleContainer.offsetHeight;
 
     document.addEventListener("mousemove", resize);
@@ -64,14 +64,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const deltaY = e.clientY - lastY;
 
-    let newEditorHeight = editorInitialHeight + deltaY;
+    let newWorkspaceHeight = workspaceInitialHeight + deltaY;
     let newTerminalHeight = terminalInitialHeight - deltaY;
 
-    if (newEditorHeight < MIN_HEIGHT || newTerminalHeight < MIN_HEIGHT) {
+    if (newWorkspaceHeight < MIN_HEIGHT || newTerminalHeight < MIN_HEIGHT) {
       return; // Prevent shrinking below min height
     }
 
-    editor.style.flexBasis = `${newEditorHeight}px`;
+    workspaceElement.style.flexBasis = `${newWorkspaceHeight}px`;
     terminalConsoleContainer.style.flexBasis = `${newTerminalHeight}px`;
     localStorage.setItem("terminalHeight", `${newTerminalHeight}px`);
   }
@@ -224,14 +224,14 @@ document.addEventListener("DOMContentLoaded", () => {
       const editorTerminalContainerHeight =
         editorTerminalContainer.offsetHeight;
       const bottomResizerHeight = bottomResizer.offsetHeight;
-      const editorHeight =
+      const workspaceHeight = // Changed from editorHeight
         editorTerminalContainerHeight -
         parseInt(savedTerminalHeight) -
         bottomResizerHeight;
-      if (editorHeight >= MIN_HEIGHT) {
-        editor.style.flexBasis = `${editorHeight}px`;
+      if (workspaceHeight >= MIN_HEIGHT) {
+        workspaceElement.style.flexBasis = `${workspaceHeight}px`; // Manipulate workspaceElement
       } else {
-        editor.style.flexBasis = `calc(100% - ${MIN_HEIGHT + bottomResizerHeight}px)`;
+        workspaceElement.style.flexBasis = `calc(100% - ${MIN_HEIGHT + bottomResizerHeight}px)`;
         terminalConsoleContainer.style.flexBasis = `${MIN_HEIGHT}px`;
         localStorage.setItem("terminalHeight", `${MIN_HEIGHT}px`);
       }

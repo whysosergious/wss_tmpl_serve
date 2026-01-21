@@ -136,7 +136,7 @@ export class WssWorkspace extends HTMLElement {
       }
     } else {
       // Create a new tab and editor for the file, passing the content
-      this.wssTabs.addTab(name, content); // Pass content to addTab
+      this.wssTabs.addTab(path, name, content); // Pass path as id, name, and content
     }
   }
 
