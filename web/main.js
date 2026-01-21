@@ -5,6 +5,7 @@ import "/src/editor/mod.js";
 import "/src/console/mod.js";
 import "/src/tree-view/mod.js";
 import "/src/tabs/tabs.js";
+import "/src/workspace/workspace.js"; // Import the wss-workspace component
 
 document.addEventListener("DOMContentLoaded", () => {
   const tabBar = document.querySelector(".tab-bar");
@@ -270,4 +271,3 @@ document.addEventListener("DOMContentLoaded", () => {
   // Apply layout on initial load
   applyLayout();
 });
-

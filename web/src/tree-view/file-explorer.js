@@ -177,8 +177,30 @@ export class WssFileExplorer extends HTMLElement {
 
         this.render();
       });
+    } else {
+      // It's a file, add a click listener to open it
+      node.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        const content = await this.readFileContent(path);
+        this.dispatchEvent(new CustomEvent("file-opened", {
+          detail: { path, name: file.name, content },
+          bubbles: true,
+          composed: true,
+        }));
+      });
     }
     return node;
+  }
+
+  async readFileContent(path) {
+    const cmd = `cat ".${path}"`; // Use 'cat' to read file content
+    try {
+      const result = await sh.ws.send({ type: "cmd", body: cmd });
+      return result.body; // Assuming result.body contains the file content
+    } catch (e) {
+      console.error(`Failed to read file content for ${path}:`, e);
+      return `Error reading file: ${path}`;
+    }
   }
 
   _getChildren(parent, parentIndex) {
