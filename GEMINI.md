@@ -1,46 +1,35 @@
-# Project: wss_serve
+# Project Overview
 
-## Project Overview
+This project is a web-based interactive development environment (IDE) or a similar tool, leveraging a Rust backend and a vanilla JavaScript frontend.
 
-This project is a web application that provides a terminal-like interface in the browser. It uses a WebSocket connection to a Rust-based backend server to execute commands and display the output in real-time.
+**Backend:**
+*   **Language:** Rust
+*   **Frameworks:** Actix (web framework), Tokio (asynchronous runtime)
+*   **Communication:** HTTP and Websockets
+*   **Command Execution:** Integrates with Nushell for command execution.
 
-**Technologies:**
+**Frontend:**
+*   **Language:** Vanilla JavaScript
+*   **Architecture:** Utilizes Web Components for UI.
+*   **Editor:** Implements CodeMirror 6 for code editing capabilities.
+*   **Features:** Currently includes a partially implemented "tabs" feature for the editor.
 
-*   **Backend:** Rust, Actix-web (for HTTP and WebSockets), Serde (for serialization), RMP-Serde (for MessagePack).
-*   **Frontend:** Vanilla JavaScript, Web Components.
+# Building and Running
 
-**Architecture:**
+## Compiling the Rust Backend
 
-The application consists of two main parts:
-
-1.  **Backend Server:** A Rust application built with Actix-web that serves the frontend files and handles WebSocket connections. When a command is received from a client via WebSocket, it executes the command and sends the output back to the client.
-
-2.  **Frontend Web Application:** A single-page application built with vanilla JavaScript and Web Components. It provides a terminal-like interface where users can type commands and see the output. The frontend communicates with the backend via a WebSocket connection.
-
-## Building and Running
-
-### Prerequisites
-
-*   Rust (latest stable version)
-*   `wasm-pack` (for building the frontend)
-
-### Backend
-
-To build and run the backend server:
+To check if the Rust backend compiles successfully:
 
 ```bash
-# From the project root directory
-cargo run
+cargo check
 ```
 
-The server will start on `127.0.0.1:8080` by default. You can change the host and port by setting the `HOST` and `PORT` environment variables.
+## Running the Project
 
-### Frontend
+**TODO:** Add instructions for running the full project (backend and frontend). This typically involves starting the Rust server and serving the static frontend files.
 
-The frontend is served automatically by the backend server. No separate build step is required for the frontend.
+# Development Conventions
 
-## Development Conventions
-
-*   **Backend:** The backend code is located in the `src` directory. It follows standard Rust conventions.
-*   **Frontend:** The frontend code is located in the `web` directory. It uses vanilla JavaScript and Web Components.
-*   **Communication:** The client and server communicate using MessagePack-encoded binary messages over a WebSocket connection. The message format is defined in `src/ws/connection.rs`.
+*   **CodeMirror 6:** The source code for CodeMirror 6 is located in `web/src/editor/pme/`. When analyzing or modifying the project, avoid deep dives into this directory as it contains third-party library code.
+*   **Tabs Feature:** The editor includes a partially implemented tabs feature. Further development may involve completing this functionality.
+*   **Frontend Typing:** Use JSDoc for type annotations on the frontend, adding them where missing as work progresses.

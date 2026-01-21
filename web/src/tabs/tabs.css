@@ -1,0 +1,87 @@
+:host {
+  display: flex;
+  flex-wrap: nowrap; /* Ensure flex items in host do not wrap */
+  background-color: #252526;
+  border-bottom: 1px solid #3c3c3c;
+  padding: 0; /* Remove padding from host to control inner padding */
+  align-items: center;
+  height: 30px; /* Make the row pretty small */
+  width: 100%; /* Explicitly set width for the host */
+}
+
+#tabs-container {
+  display: flex;
+  flex-direction: row; /* Ensure tabs are next to each other */
+  overflow-x: auto; /* Enable horizontal scrolling */
+  white-space: nowrap; /* Prevent tabs from wrapping */
+  /* Hide scrollbar for WebKit browsers */
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  /* Hide scrollbar for Firefox */
+  scrollbar-width: none;
+  flex-grow: 1; /* Allow container to take available space and enable overflow */
+  min-width: 0; /* Allow the flex item to shrink below its content size */
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  padding: 4px 4px 4px 10px; /* Adjusted padding to make tabs smaller */
+  cursor: pointer;
+  border-right: 1px solid #3c3c3c;
+  color: #9e9e9e;
+  font-size: 13px; /* Slightly smaller font size */
+  flex-shrink: 0; /* Prevent tabs from shrinking */
+  min-width: 50px; /* Ensure tabs have a minimum width */
+}
+
+.tab.active {
+  background-color: #1e1e1e;
+  color: #d4d4d4;
+}
+
+.tab:hover {
+  background-color: #2a2d2e;
+}
+
+.tab-name {
+  margin-right: 4px;
+  overflow: hidden; /* Ensure text truncates if too long */
+  text-overflow: ellipsis;
+}
+
+.close-btn {
+  width: 14px; /* Smaller close button */
+  height: 14px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px; /* Smaller font for 'x' */
+  line-height: 1;
+  color: #9e9e9e;
+}
+
+.close-btn:hover {
+  background-color: #3c3c3c;
+  color: #d4d4d4;
+}
+
+.add-btn {
+  height: 100%; /* Take full height of the host */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  cursor: pointer;
+  color: #9e9e9e;
+  background-color: #252526; /* Match host background */
+  flex-shrink: 0; /* Prevent button from shrinking */
+  padding: 4px 10px;
+  border-left: 1px solid #3c3c3c;
+}
+
+.add-btn:hover {
+  background-color: #2a2d2e;
+}

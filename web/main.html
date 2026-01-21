@@ -25,15 +25,21 @@
       </div>
       <div class="resizer right-resizer" id="right-resizer"></div>
       <div class="editor-terminal-container">
+        <wss-tabs></wss-tabs>
         <wss-editor></wss-editor>
         <div class="resizer" id="bottom-resizer"></div>
         <div class="tab-container terminal-console-container">
           <div class="tab-bar">
-            <button class="tab-button active" data-tab="terminal">Terminal</button>
+            <button class="tab-button active" data-tab="terminal">
+              Terminal
+            </button>
             <button class="tab-button" data-tab="console">Console</button>
           </div>
           <div class="tab-content">
-            <wss-terminal class="tab-pane active" data-tab="terminal"></wss-terminal>
+            <wss-terminal
+              class="tab-pane active"
+              data-tab="terminal"
+            ></wss-terminal>
             <wss-console class="tab-pane" data-tab="console"></wss-console>
           </div>
         </div>

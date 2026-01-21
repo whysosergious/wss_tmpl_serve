@@ -4,6 +4,7 @@ import "/src/terminal/mod.js";
 import "/src/editor/mod.js";
 import "/src/console/mod.js";
 import "/src/tree-view/mod.js";
+import "/src/tabs/tabs.js";
 
 document.addEventListener("DOMContentLoaded", () => {
   const tabBar = document.querySelector(".tab-bar");
@@ -11,10 +12,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const tabButtons = document.querySelectorAll(".tab-button");
 
   function switchTab(tabId) {
-    tabButtons.forEach(button => {
+    tabButtons.forEach((button) => {
       button.classList.toggle("active", button.dataset.tab === tabId);
     });
-    tabPanes.forEach(pane => {
+    tabPanes.forEach((pane) => {
       pane.classList.toggle("active", pane.dataset.tab === tabId);
     });
     localStorage.setItem("activeTab", tabId);
@@ -32,7 +33,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Resizing logic (Vertical - for Terminal/Editor)
   const editor = document.querySelector("wss-editor");
-  const terminalConsoleContainer = document.querySelector(".terminal-console-container");
+  const terminalConsoleContainer = document.querySelector(
+    ".terminal-console-container",
+  );
   const bottomResizer = document.getElementById("bottom-resizer");
 
   const MIN_HEIGHT = 50; // Minimum height in pixels for both editor and terminal
@@ -84,10 +87,16 @@ document.addEventListener("DOMContentLoaded", () => {
   bottomResizer.addEventListener("mousedown", startResize);
 
   // Resizing logic (Horizontal - for File Explorer) and Toggling
-  const fileExplorerContainer = document.querySelector(".file-explorer-container");
-  const editorTerminalContainer = document.querySelector(".editor-terminal-container");
+  const fileExplorerContainer = document.querySelector(
+    ".file-explorer-container",
+  );
+  const editorTerminalContainer = document.querySelector(
+    ".editor-terminal-container",
+  );
   const rightResizer = document.getElementById("right-resizer");
-  const toggleFileExplorerButton = document.getElementById("toggle-file-explorer");
+  const toggleFileExplorerButton = document.getElementById(
+    "toggle-file-explorer",
+  );
   const mainLayoutContainer = document.querySelector(".main-layout-container"); // NEW
 
   const MIN_FILE_EXPLORER_WIDTH = 40; // Collapsed width
@@ -106,13 +115,13 @@ document.addEventListener("DOMContentLoaded", () => {
     editorTerminalInitialWidthPx = editorTerminalContainer.offsetWidth; // Get current pixel width
 
     // Temporarily disable transition for smooth resizing
-    fileExplorerContainer.style.transition = 'none';
+    fileExplorerContainer.style.transition = "none";
 
     // Ensure flex properties for dragging
-    fileExplorerContainer.style.flexGrow = '0';
-    fileExplorerContainer.style.flexShrink = '0';
-    editorTerminalContainer.style.flexGrow = '1';
-    editorTerminalContainer.style.flexShrink = '1';
+    fileExplorerContainer.style.flexGrow = "0";
+    fileExplorerContainer.style.flexShrink = "0";
+    editorTerminalContainer.style.flexGrow = "1";
+    editorTerminalContainer.style.flexShrink = "1";
 
     document.addEventListener("mousemove", resizeHorizontal);
     document.addEventListener("mouseup", stopHorizontalResize);
@@ -132,20 +141,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Boundary checks
     if (newFileExplorerWidthPx < MIN_FILE_EXPLORER_WIDTH) {
-        newFileExplorerWidthPx = MIN_FILE_EXPLORER_WIDTH;
+      newFileExplorerWidthPx = MIN_FILE_EXPLORER_WIDTH;
     }
     if (newEditorTerminalWidthPx < MIN_EDITOR_TERMINAL_WIDTH) {
-        newFileExplorerWidthPx = totalLayoutWidth - MIN_EDITOR_TERMINAL_WIDTH;
-    }
-    
-    // Final check to prevent overlap/negative sizes
-    if (newFileExplorerWidthPx > totalLayoutWidth - MIN_EDITOR_TERMINAL_WIDTH) {
-        newFileExplorerWidthPx = totalLayoutWidth - MIN_EDITOR_TERMINAL_WIDTH;
-    }
-    if (newFileExplorerWidthPx < MIN_FILE_EXPLORER_WIDTH) { // Double check min width after other calculations
-        newFileExplorerWidthPx = MIN_FILE_EXPLORER_WIDTH;
+      newFileExplorerWidthPx = totalLayoutWidth - MIN_EDITOR_TERMINAL_WIDTH;
     }
 
+    // Final check to prevent overlap/negative sizes
+    if (newFileExplorerWidthPx > totalLayoutWidth - MIN_EDITOR_TERMINAL_WIDTH) {
+      newFileExplorerWidthPx = totalLayoutWidth - MIN_EDITOR_TERMINAL_WIDTH;
+    }
+    if (newFileExplorerWidthPx < MIN_FILE_EXPLORER_WIDTH) {
+      // Double check min width after other calculations
+      newFileExplorerWidthPx = MIN_FILE_EXPLORER_WIDTH;
+    }
 
     fileExplorerContainer.style.flexBasis = `${newFileExplorerWidthPx}px`; // Apply pixel value
     localStorage.setItem("fileExplorerWidth", `${newFileExplorerWidthPx}px`); // Save as pixel value
@@ -159,7 +168,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.body.style.userSelect = "";
     document.body.style.pointerEvents = "";
     // Re-enable transition after resizing
-    fileExplorerContainer.style.transition = '';
+    fileExplorerContainer.style.transition = "";
 
     // Revert flex properties if they were temporarily set for dragging
     // For this specific CSS setup, it's better to let CSS classes manage flexGrow/flexShrink post-drag
@@ -170,25 +179,32 @@ document.addEventListener("DOMContentLoaded", () => {
   rightResizer.addEventListener("mousedown", startHorizontalResize);
 
   function toggleFileExplorer() {
-    const isCurrentlyCollapsed = fileExplorerContainer.classList.contains("collapsed");
+    const isCurrentlyCollapsed =
+      fileExplorerContainer.classList.contains("collapsed");
     let targetFlexBasisPx; // Renamed for clarity
 
     // Ensure transition is active for toggle animation
-    fileExplorerContainer.style.transition = 'flex-basis 0.2s ease-in-out'; // Transition flex-basis
+    fileExplorerContainer.style.transition = "flex-basis 0.2s ease-in-out"; // Transition flex-basis
 
     if (isCurrentlyCollapsed) {
       // Expand
       fileExplorerContainer.classList.remove("collapsed");
       targetFlexBasisPx = localStorage.getItem("fileExplorerWidth"); // Get saved pixel value
-      if (!targetFlexBasisPx || parseInt(targetFlexBasisPx) < MIN_FILE_EXPLORER_WIDTH) {
-          targetFlexBasisPx = `${INITIAL_FILE_EXPLORER_WIDTH}px`;
+      if (
+        !targetFlexBasisPx ||
+        parseInt(targetFlexBasisPx) < MIN_FILE_EXPLORER_WIDTH
+      ) {
+        targetFlexBasisPx = `${INITIAL_FILE_EXPLORER_WIDTH}px`;
       }
       fileExplorerContainer.style.flexBasis = targetFlexBasisPx;
       localStorage.setItem("fileExplorerCollapsed", "false");
     } else {
       // Collapse
       // Save current expanded width before collapsing
-      localStorage.setItem("fileExplorerWidth", fileExplorerContainer.style.flexBasis); 
+      localStorage.setItem(
+        "fileExplorerWidth",
+        fileExplorerContainer.style.flexBasis,
+      );
       fileExplorerContainer.classList.add("collapsed");
       fileExplorerContainer.style.flexBasis = `${MIN_FILE_EXPLORER_WIDTH}px`; // Collapse to min pixel width
       localStorage.setItem("fileExplorerCollapsed", "true");
@@ -204,9 +220,13 @@ document.addEventListener("DOMContentLoaded", () => {
     if (savedTerminalHeight) {
       terminalConsoleContainer.style.flexBasis = savedTerminalHeight;
       // Use editorTerminalContainer's offsetHeight for calculation
-      const editorTerminalContainerHeight = editorTerminalContainer.offsetHeight; 
+      const editorTerminalContainerHeight =
+        editorTerminalContainer.offsetHeight;
       const bottomResizerHeight = bottomResizer.offsetHeight;
-      const editorHeight = editorTerminalContainerHeight - parseInt(savedTerminalHeight) - bottomResizerHeight;
+      const editorHeight =
+        editorTerminalContainerHeight -
+        parseInt(savedTerminalHeight) -
+        bottomResizerHeight;
       if (editorHeight >= MIN_HEIGHT) {
         editor.style.flexBasis = `${editorHeight}px`;
       } else {
@@ -218,7 +238,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Apply saved file explorer state
     const savedFileExplorerWidth = localStorage.getItem("fileExplorerWidth"); // Expecting pixel value
-    const savedFileExplorerCollapsed = localStorage.getItem("fileExplorerCollapsed") === "true";
+    const savedFileExplorerCollapsed =
+      localStorage.getItem("fileExplorerCollapsed") === "true";
 
     if (savedFileExplorerCollapsed) {
       fileExplorerContainer.classList.add("collapsed");
@@ -226,12 +247,17 @@ document.addEventListener("DOMContentLoaded", () => {
     } else if (savedFileExplorerWidth) {
       fileExplorerContainer.classList.remove("collapsed");
       let parsedWidth = parseInt(savedFileExplorerWidth);
-      if (parsedWidth < MIN_FILE_EXPLORER_WIDTH) { // Ensure saved width isn't too small
-          parsedWidth = MIN_FILE_EXPLORER_WIDTH;
+      if (parsedWidth < MIN_FILE_EXPLORER_WIDTH) {
+        // Ensure saved width isn't too small
+        parsedWidth = MIN_FILE_EXPLORER_WIDTH;
       }
       // Ensure it doesn't push editor below its min
-      if (mainLayoutContainer.offsetWidth - parsedWidth < MIN_EDITOR_TERMINAL_WIDTH) {
-          parsedWidth = mainLayoutContainer.offsetWidth - MIN_EDITOR_TERMINAL_WIDTH;
+      if (
+        mainLayoutContainer.offsetWidth - parsedWidth <
+        MIN_EDITOR_TERMINAL_WIDTH
+      ) {
+        parsedWidth =
+          mainLayoutContainer.offsetWidth - MIN_EDITOR_TERMINAL_WIDTH;
       }
 
       fileExplorerContainer.style.flexBasis = `${parsedWidth}px`; // Use parsed pixel value
@@ -244,3 +270,4 @@ document.addEventListener("DOMContentLoaded", () => {
   // Apply layout on initial load
   applyLayout();
 });
+

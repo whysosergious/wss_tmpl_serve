@@ -1,9 +1,22 @@
-html,
-body {
+*,
+*::before,
+*::after {
   margin: 0;
   padding: 0;
+  box-sizing: border-box; /* Makes width/height include padding and borders */
+}
+html {
   height: 100vh;
   width: 100vw;
+}
+body {
+  height: 100%;
+  width: 100%;
+}
+html,
+body {
+  display: block;
+  position: relative;
   overflow: hidden;
   font-family: Arial, sans-serif;
   color: #cccccc;
@@ -12,6 +25,7 @@ body {
 
 .main-layout-container {
   display: flex;
+  position: relative;
   height: 100%;
   width: 100%;
 }
@@ -21,7 +35,7 @@ body {
   min-width: 40px; /* Minimum visual width, flex-basis will control actual size */
   background-color: #252526;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   overflow: hidden;
   transition: flex-basis 0.2s ease-in-out; /* Transition flex-basis instead of width */
   flex-grow: 0; /* Should not grow beyond flex-basis */
@@ -40,7 +54,6 @@ body {
   display: flex;
   align-items: center;
   padding: 0 5px;
-  box-sizing: border-box;
   border-bottom: 1px solid #3e3e3e;
 }
 
@@ -196,3 +209,10 @@ wss-terminal {
 .cm-editor {
   height: 100%;
 }
+
+/* Styles for wss-tabs to ensure it takes available space and allows internal scrolling */
+wss-tabs {
+  width: 100%;
+  flex-shrink: 0;
+}
+
