@@ -37,6 +37,9 @@ export class WssWorkspace extends HTMLElement {
         #editors-container > wss-editor.active {
           display: block;
         }
+        .cm-editor {
+          height: 100%; /* Ensure CodeMirror editor takes full height */
+        }
       </style>
       <div id="tabs-slot"></div>
       <div id="editors-container"></div>
@@ -76,16 +79,21 @@ export class WssWorkspace extends HTMLElement {
   }
 
   _handleTabAdded(event) {
-    const { id, name } = event.detail;
+    const { id, name, initialContent } = event.detail;
     // When a tab is added, create a corresponding editor instance
-    this._createEditorForTab(id, name, ""); // Initial content is empty for a newly added tab
+    this._createEditorForTab(id, name, initialContent || ""); // Pass initialContent
   }
 
   _createEditorForTab(id, name, content) {
     if (this.editorInstances.has(id)) {
       console.warn(`Tab with ID ${id} already exists, activating it.`);
       this.wssTabs.setActiveTab(id);
-      return;
+      // Ensure editor content is updated in case file changed externally
+      const editor = this.editorInstances.get(id);
+      if (editor) {
+        editor.loadContent(content);
+      }
+      return; // Do not create a new editor if one already exists
     }
 
     const editor = document.createElement("wss-editor");
@@ -107,17 +115,17 @@ export class WssWorkspace extends HTMLElement {
     const { id } = event.detail;
     const editor = this.editorInstances.get(id);
     if (editor) {
+      // Save editor state before removing it, if needed for session restoration
+      // this.editorStates.set(id, editor.getState());
       this.editorsContainer.removeChild(editor);
       this.editorInstances.delete(id);
-      // wss-tabs component will handle activating another tab or adding a new one.
-      // wss-workspace only needs to react to subsequent 'tab-activated' or 'tab-added' events.
     }
   }
 
   _handleFileOpened(event) {
     const { path, name, content } = event.detail;
     // Check if a tab for this path already exists
-    // Using a temporary way to access _tabs for now, will refine
+    // Using a temporary way to access _tabs for now, will refine (as _tabs is private)
     const existingTab = Array.from(this.wssTabs._tabs || []).find(tab => tab.id === path); 
     if (existingTab) {
       this.wssTabs.setActiveTab(existingTab.id);
@@ -126,15 +134,9 @@ export class WssWorkspace extends HTMLElement {
       if (editor) {
         editor.loadContent(content);
       }
-    }
-    else {
-      // Create a new tab and editor for the file
-      this.wssTabs.addTab(path, name);
-      // The _handleTabAdded will be triggered, and then _createEditorForTab
-      // We need to pass content to the editor after it's created.
-      // A more robust way would be for addTab to return the ID, or for _createEditorForTab
-      // to be called directly. For simplicity here, _createEditorForTab takes content.
-      this._createEditorForTab(path, name, content);
+    } else {
+      // Create a new tab and editor for the file, passing the content
+      this.wssTabs.addTab(name, content); // Pass content to addTab
     }
   }
 
@@ -144,6 +146,8 @@ export class WssWorkspace extends HTMLElement {
     if (this.activeTabId) {
       const currentEditor = this.editorInstances.get(this.activeTabId);
       if (currentEditor) {
+        // Save current editor's state (e.g., scroll, cursor, content)
+        // this.editorStates.set(this.activeTabId, currentEditor.getState());
         currentEditor.classList.remove("active");
       }
     }
@@ -152,6 +156,9 @@ export class WssWorkspace extends HTMLElement {
     if (newEditor) {
       newEditor.classList.add("active");
       newEditor.focus();
+      // Restore editor's state
+      // const savedState = this.editorStates.get(id);
+      // if (savedState) newEditor.setState(savedState);
       this.activeTabId = id;
     }
   }

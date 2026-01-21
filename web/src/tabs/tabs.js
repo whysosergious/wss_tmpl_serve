@@ -35,7 +35,7 @@ export class WssTabs extends HTMLElement {
     }
   }
 
-  addTab(name = "untitled") {
+  addTab(name = "untitled", initialContent = "") {
     const tab = {
       id: Date.now(),
       name,
@@ -45,7 +45,7 @@ export class WssTabs extends HTMLElement {
 
     this.dispatchEvent(
       new CustomEvent("tab-added", {
-        detail: { id: tab.id, name: tab.name },
+        detail: { id: tab.id, name: tab.name, initialContent },
         bubbles: true,
         composed: true,
       }),
