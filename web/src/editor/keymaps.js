@@ -22,4 +22,18 @@ export const customKeymap = keymap.of([
     shift: false,
     run: toggleLineComment,
   },
+  {
+    key: "Control-s",
+    run: (view) => {
+      view.dom.dispatchEvent(new CustomEvent("save", { bubbles: true }));
+      return true;
+    },
+  },
+  {
+    key: "Control-Shift-s",
+    run: (view) => {
+      view.dom.dispatchEvent(new CustomEvent("save-as", { bubbles: true }));
+      return true;
+    },
+  },
 ]);

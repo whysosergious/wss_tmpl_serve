@@ -6,7 +6,9 @@ import sh from "/src/sh.js";
 const ws = {
   instance: null,
   ready: Promise.withResolvers(),
+  terminalInstance: null,
   connect: function (url, terminalInstance) {
+    this.terminalInstance = terminalInstance;
     this.ready = Promise.withResolvers();
     this.instance = new WebSocket(url);
 
@@ -97,6 +99,8 @@ const ws = {
   },
   pending: new Map(),
   send: async function (message) {
+    this.terminalInstance.println("> " + message.body);
+
     await this.ready.promise;
     message.msg_id = gen_hash();
 

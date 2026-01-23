@@ -215,6 +215,40 @@ export class WssFileExplorer extends HTMLElement {
     }
     return children;
   }
+
+  async refresh_path(path) {
+    // a bit hacky, but it works
+    if (path.endsWith("/")) {
+      path = path.slice(0, -1);
+    }
+    const parent_dir = this._files.find((f) => {
+      const f_path = [f.parentPath, f.name].join("/").replace(/\/+/g, "/");
+      return f_path === path && f.type === "dir" && f.open;
+    });
+
+    if (parent_dir) {
+      const index = this._files.indexOf(parent_dir);
+      const children = this._getChildren(parent_dir, index);
+      this._files.splice(index + 1, children.length);
+
+      const files = await this.listFiles(path);
+      const newFiles = files
+        .map((f) => ({
+          ...f,
+          depth: parent_dir.depth + 1,
+          parentPath: path,
+          open: false,
+        }))
+        .sort((a, b) => {
+          if (a.type === b.type) {
+            return a.name.localeCompare(b.name);
+          }
+          return a.type === "dir" ? -1 : 1;
+        });
+      this._files.splice(index + 1, 0, ...newFiles);
+      this.render();
+    }
+  }
 }
 
 globalThis.customElements.define("wss-file-explorer", WssFileExplorer);

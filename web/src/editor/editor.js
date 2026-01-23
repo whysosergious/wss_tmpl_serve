@@ -84,6 +84,9 @@ export class WssEditor extends HTMLElement {
 
     sh.editors[this.id] = this;
 
+    this.addEventListener("save", this.save);
+    this.addEventListener("save-as", this.saveAs);
+
     /// load language support by ext (defaults to js)
     lang_by_ext(ext).then((res) => {
       this.setLanguage([res]);
@@ -93,7 +96,74 @@ export class WssEditor extends HTMLElement {
   disconnectedCallback() {
     this.view.destroy(); // Clean up CodeMirror view
     delete sh.editors[this.id];
+    this.removeEventListener("save", this.save);
+    this.removeEventListener("save-as", this.saveAs);
   }
+
+  save = () => {
+    if (this.name === "untitled") {
+      this.saveAs();
+    } else {
+      const content = this.getContent();
+      // Proper escaping for shell
+      const escaped_content = content.replaceAll("'", "'\\''");
+      const command = `'${escaped_content}' | save -f '${this.full_path}'`;
+      sh.ws.send({
+        type: "cmd",
+        body: command,
+      });
+    }
+  };
+
+  saveAs = () => {
+    const modal = document.getElementById("save-as-modal");
+    modal.style.display = "flex";
+
+    const pathInput = document.getElementById("file-path");
+    const nameInput = document.getElementById("file-name");
+    pathInput.value = this.path;
+    nameInput.value = this.name;
+
+    let saveButton = document.getElementById("save-button");
+    let cancelButton = document.getElementById("cancel-button");
+
+    const newSaveButton = saveButton.cloneNode(true);
+    saveButton.parentNode.replaceChild(newSaveButton, saveButton);
+    saveButton = newSaveButton;
+
+    const newCancelButton = cancelButton.cloneNode(true);
+    cancelButton.parentNode.replaceChild(newCancelButton, cancelButton);
+    cancelButton = newCancelButton;
+
+    const onSave = () => {
+      let path = pathInput.value;
+      if (!path.endsWith("/")) {
+        path += "/";
+      }
+      const full_path = path + nameInput.value;
+
+      const { path: new_path, name, ext } = this.split_fullpath(full_path);
+
+      this.path = new_path;
+      this.name = name;
+      this.ext = ext;
+
+      this.save();
+      modal.style.display = "none";
+      // Refresh file explorer
+      const fileExplorer = document.querySelector("wss-file-explorer");
+      if (fileExplorer) {
+        fileExplorer.refresh_path(this.path);
+      }
+    };
+
+    const onCancel = () => {
+      modal.style.display = "none";
+    };
+
+    saveButton.addEventListener("click", onSave);
+    cancelButton.addEventListener("click", onCancel);
+  };
 
   /**
    * split fullpath of a file into path, base and extension

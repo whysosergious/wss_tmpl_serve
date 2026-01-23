@@ -45,6 +45,23 @@
       </div>
     </div>
 
+    <div id="save-as-modal" class="modal-container" style="display: none;">
+      <div class="modal-content">
+        <h2>Save As</h2>
+        <div class="form-group">
+          <label for="file-path">Path (relative to project root):</label>
+          <input type="text" id="file-path" name="file-path" />
+        </div>
+        <div class="form-group">
+          <label for="file-name">Name:</label>
+          <input type="text" id="file-name" name="file-name" />
+        </div>
+        <div class="modal-buttons">
+          <button id="save-button">Save</button>
+          <button id="cancel-button">Cancel</button>
+        </div>
+      </div>
+    </div>
     <script type="module" src="./main.js"></script>
   </body>
 </html>
