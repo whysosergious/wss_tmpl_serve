@@ -3,16 +3,14 @@ import {
   EditorState,
   EditorView,
   basicSetup,
-  javascript,
-  javascriptLanguage,
   oneDark,
   autocompletion,
 } from "./pme/pme.mod.js";
 import { customKeymap } from "./keymaps.js";
 import { gen_hash } from "/src/lib.js"; // This might not be needed if id is from tab-id
 
-// completions
-import { globalCompletions } from "./completions.js";
+// custom plugins
+import { lang_by_ext } from "./plugins/language_switcher.js";
 
 // themes
 import { nord } from "./themes/nord.js";
@@ -36,8 +34,8 @@ sh.pme = {
 
 export class WssEditor extends HTMLElement {
   id = null; // Will be set from 'tab-id' attribute
-  filename = "untitled";
-  filetype = undefined;
+  name = "untitled";
+  ext = undefined;
   path = "/";
   view; // EditorView instance
 
@@ -50,7 +48,13 @@ export class WssEditor extends HTMLElement {
   theme = new Compartment();
 
   connectedCallback() {
-    this.id = this.getAttribute("tab-id") || gen_hash(); // Use tab-id if available, otherwise generate
+    this.id = gen_hash(); // Use tab-id if available, otherwise generate
+    const { path, name, ext } = this.split_fullpath(
+      this.getAttribute("tab-id"),
+    );
+    this.path = path;
+    this.name = name;
+    this.ext = ext;
 
     this.state = EditorState.create({
       doc: this.initialContent || "", // Start with empty content or provided initialContent
@@ -58,18 +62,19 @@ export class WssEditor extends HTMLElement {
         customKeymap,
         basicSetup,
         this.theme.of(oneDark),
-        this.language.of(javascript({ typescript: true, autocomplete: true })),
-        globalCompletions,
+        this.language.of([]),
         autocompletion(),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
-            this.dispatchEvent(new CustomEvent("editor-content-changed", {
-              detail: { id: this.id, content: this.getContent() },
-              bubbles: true,
-              composed: true,
-            }));
+            this.dispatchEvent(
+              new CustomEvent("editor-content-changed", {
+                detail: { id: this.id, content: this.getContent() },
+                bubbles: true,
+                composed: true,
+              }),
+            );
           }
-        })
+        }),
       ],
     });
     this.view = new EditorView({
@@ -78,6 +83,11 @@ export class WssEditor extends HTMLElement {
     });
 
     sh.editors[this.id] = this;
+
+    /// load language support by ext (defaults to js)
+    lang_by_ext(ext).then((res) => {
+      this.setLanguage([res]);
+    });
   }
 
   disconnectedCallback() {
@@ -86,12 +96,50 @@ export class WssEditor extends HTMLElement {
   }
 
   /**
+   * split fullpath of a file into path, base and extension
+   * @returns ({path:string, name:string, ext:string|undefined})
+   */
+  split_fullpath(full_path) {
+    const last_slash = full_path.lastIndexOf("/");
+    const path = last_slash === -1 ? "" : full_path.slice(0, last_slash + 1);
+    const full_name = full_path.slice(last_slash + 1); // may be "foo", ".env", ".gitignore", ""
+
+    // No dot at all → extensionless
+    const last_dot = full_name.lastIndexOf(".");
+
+    // No dot or dot is first char (dotfile like ".env", ".gitignore")
+    if (last_dot <= 0) {
+      return {
+        path,
+        name: full_name, // "foo", ".env", ".gitignore"
+        ext: "", // no extension
+      };
+    }
+
+    // Normal case: "c.es.js" → "c.es" + "js"
+    const name = full_name.slice(0, last_dot);
+    const ext = full_name.slice(last_dot + 1);
+
+    return { path, name, ext };
+  }
+
+  /**
+   * join path, name and ext
+   * @returns (string)
+   */
+  get full_path() {
+    const _ext = this.ext.length ? "." + this.ext : this.ext;
+
+    return this.path + this.name + _ext;
+  }
+
+  /**
    * Sets the content of the editor.
    * @param {string} content The new content for the editor.
    */
   loadContent(content) {
     this.view.dispatch({
-      changes: { from: 0, to: this.view.state.doc.length, insert: content }
+      changes: { from: 0, to: this.view.state.doc.length, insert: content },
     });
   }
 
