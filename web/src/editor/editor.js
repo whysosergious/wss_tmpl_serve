@@ -135,60 +135,55 @@ export class WssEditor extends HTMLElement {
       this._saveFile(true);
     }
   };
+  saveAsModal = null;
+  saveAs = async ({ p, n }) => {
+    this.saveAsModal ??= document.getElementById("save-as-modal-container");
 
-  saveAs = async () => {
-    await customElements.whenDefined("wss-save-as-modal");
-    const saveAsModal = document.getElementById("save-as-modal-container");
     try {
-      const { path, name: newName } = await saveAsModal.show({
-        path: this.path,
-        name: this.name,
+      const { path: new_path, name: new_name } = await this.saveAsModal.show({
+        path: p ?? this.path,
+        name: n ?? this.name + (this.ext.length ? "." + this.ext : ""),
       });
 
-      let full_path = newName;
-      if (path) {
-        full_path = path.endsWith("/") ? path + newName : path + "/" + newName;
-      }
+      const { path, name, ext } = this.split_fullpath(
+        this.normalize_path(new_path + "/" + new_name),
+      );
 
-      const {
-        path: new_path,
-        name,
-        ext,
-      } = this.split_fullpath(full_path);
+      this.path = path;
+      this.name = name;
+      this.ext = ext;
 
-      const file_exists_cmd = `'${full_path}' | path exists`;
-      const res = await sh.ws.send({ type: "cmd", body: file_exists_cmd });
-      const file_exists = res.body.trim() === "true";
+      const file_exists = (
+        await sh.ws.send({
+          type: "cmd",
+          body: `'.${this.full_path}' | path exists`,
+        })
+      ).body.trim();
 
-      const save = () => {
-        this.path = new_path;
-        this.name = name;
-        this.ext = ext;
-        this._saveFile(true);
-      };
-
-      if (file_exists) {
-        await customElements.whenDefined("wss-overwrite-confirm-modal");
-        const overwriteModal = document.getElementById(
+      if (file_exists === "true") {
+        this.overwriteModal ??= document.getElementById(
           "overwrite-confirm-modal-container",
         );
         try {
-          await overwriteModal.show();
-          save();
+          await this.overwriteModal.show();
+          this._saveFile(true);
         } catch (e) {
           // User chose not to overwrite
-          this.saveAs(); // Re-open the save as modal
+          this.saveAs({ p: new_path, n: new_name });
         }
       } else {
-        this.path = new_path;
-        this.name = name;
-        this.ext = ext;
-        this._saveFile(false);
+        this._saveFile(true);
       }
     } catch (e) {
-      // User canceled the save as modal
+      /* user canceled, do nothing */
+      console.log(e);
     }
   };
+  /**
+   * normalize path removing '.' and replacing '//' & '\' or '\\' with '/'
+   * @returns (string)
+   */
+  normalize_path = (p) => p.replace(/^(\.\/)+/, "").replace(/(\/|\\)+/g, "/");
 
   /**
    * split fullpath of a file into path, base and extension

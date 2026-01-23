@@ -182,18 +182,20 @@ export class WssFileExplorer extends HTMLElement {
       node.addEventListener("click", async (e) => {
         e.stopPropagation();
         const content = await this.readFileContent(path);
-        this.dispatchEvent(new CustomEvent("file-opened", {
-          detail: { path, name: file.name, content },
-          bubbles: true,
-          composed: true,
-        }));
+        this.dispatchEvent(
+          new CustomEvent("file-opened", {
+            detail: { path, name: file.name, content },
+            bubbles: true,
+            composed: true,
+          }),
+        );
       });
     }
     return node;
   }
 
   async readFileContent(path) {
-    const cmd = `open ".${path}"`; // Use 'open' to read file content
+    const cmd = `open ".${path}" -r`; // Use 'open' to read file content
     try {
       const result = await sh.ws.send({ type: "cmd", body: cmd });
       return result.body; // Assuming result.body contains the file content
