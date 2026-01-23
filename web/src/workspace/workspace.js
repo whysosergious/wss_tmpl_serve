@@ -68,6 +68,7 @@ export class WssWorkspace extends HTMLElement {
     this.wssTabs.addEventListener("tab-added", this._handleTabAdded.bind(this));
     this.wssTabs.addEventListener("tab-activated", this._handleTabActivated.bind(this));
     this.wssTabs.addEventListener("tab-closed", this._handleTabClosed.bind(this));
+    this.addEventListener("rename-tab", this._handleRenameTab.bind(this));
 
     // Listen for file-opened events from wss-file-explorer in the light DOM
     const wssFileExplorer = document.querySelector("wss-file-explorer");
@@ -137,6 +138,17 @@ export class WssWorkspace extends HTMLElement {
     } else {
       // Create a new tab and editor for the file, passing the content
       this.wssTabs.addTab(path, name, content); // Pass path as id, name, and content
+    }
+  }
+
+  _handleRenameTab(event) {
+    const { "tab-id": tabId, "new-name": newName } = event.detail;
+    this.wssTabs.renameTab(tabId, newName, newName);
+    const editor = this.editorInstances.get(tabId);
+    if (editor) {
+      this.editorInstances.delete(tabId);
+      this.editorInstances.set(newName, editor);
+      editor.id = newName;
     }
   }
 

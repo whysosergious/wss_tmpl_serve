@@ -193,7 +193,7 @@ export class WssFileExplorer extends HTMLElement {
   }
 
   async readFileContent(path) {
-    const cmd = `cat ".${path}"`; // Use 'cat' to read file content
+    const cmd = `open ".${path}"`; // Use 'open' to read file content
     try {
       const result = await sh.ws.send({ type: "cmd", body: cmd });
       return result.body; // Assuming result.body contains the file content

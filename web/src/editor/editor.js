@@ -100,69 +100,94 @@ export class WssEditor extends HTMLElement {
     this.removeEventListener("save-as", this.saveAs);
   }
 
+  _saveFile(force = false) {
+    const content = this.getContent();
+    // Proper escaping for shell
+    const escaped_content = content.replaceAll("'", "'\\''");
+    const force_flag = force ? "-f" : "";
+    const command = `'${escaped_content}' | save ${force_flag} './${this.full_path}'`;
+    sh.ws.send({
+      type: "cmd",
+      body: command,
+    });
+
+    this.dispatchEvent(
+      new CustomEvent("rename-tab", {
+        detail: {
+          "tab-id": this.id,
+          "new-name": this.full_path,
+        },
+        bubbles: true,
+        composed: true,
+      }),
+    );
+
+    const fileExplorer = document.querySelector("wss-file-explorer");
+    if (fileExplorer) {
+      fileExplorer.refresh_path(this.path);
+    }
+  }
+
   save = () => {
     if (this.name === "untitled") {
       this.saveAs();
     } else {
-      const content = this.getContent();
-      // Proper escaping for shell
-      const escaped_content = content.replaceAll("'", "'\\''");
-      const command = `'${escaped_content}' | save -f '${this.full_path}'`;
-      sh.ws.send({
-        type: "cmd",
-        body: command,
-      });
+      this._saveFile(true);
     }
   };
 
-  saveAs = () => {
-    const modal = document.getElementById("save-as-modal");
-    modal.style.display = "flex";
+  saveAs = async () => {
+    await customElements.whenDefined("wss-save-as-modal");
+    const saveAsModal = document.getElementById("save-as-modal-container");
+    try {
+      const { path, name: newName } = await saveAsModal.show({
+        path: this.path,
+        name: this.name,
+      });
 
-    const pathInput = document.getElementById("file-path");
-    const nameInput = document.getElementById("file-name");
-    pathInput.value = this.path;
-    nameInput.value = this.name;
-
-    let saveButton = document.getElementById("save-button");
-    let cancelButton = document.getElementById("cancel-button");
-
-    const newSaveButton = saveButton.cloneNode(true);
-    saveButton.parentNode.replaceChild(newSaveButton, saveButton);
-    saveButton = newSaveButton;
-
-    const newCancelButton = cancelButton.cloneNode(true);
-    cancelButton.parentNode.replaceChild(newCancelButton, cancelButton);
-    cancelButton = newCancelButton;
-
-    const onSave = () => {
-      let path = pathInput.value;
-      if (!path.endsWith("/")) {
-        path += "/";
+      let full_path = newName;
+      if (path) {
+        full_path = path.endsWith("/") ? path + newName : path + "/" + newName;
       }
-      const full_path = path + nameInput.value;
 
-      const { path: new_path, name, ext } = this.split_fullpath(full_path);
+      const {
+        path: new_path,
+        name,
+        ext,
+      } = this.split_fullpath(full_path);
 
-      this.path = new_path;
-      this.name = name;
-      this.ext = ext;
+      const file_exists_cmd = `'${full_path}' | path exists`;
+      const res = await sh.ws.send({ type: "cmd", body: file_exists_cmd });
+      const file_exists = res.body.trim() === "true";
 
-      this.save();
-      modal.style.display = "none";
-      // Refresh file explorer
-      const fileExplorer = document.querySelector("wss-file-explorer");
-      if (fileExplorer) {
-        fileExplorer.refresh_path(this.path);
+      const save = () => {
+        this.path = new_path;
+        this.name = name;
+        this.ext = ext;
+        this._saveFile(true);
+      };
+
+      if (file_exists) {
+        await customElements.whenDefined("wss-overwrite-confirm-modal");
+        const overwriteModal = document.getElementById(
+          "overwrite-confirm-modal-container",
+        );
+        try {
+          await overwriteModal.show();
+          save();
+        } catch (e) {
+          // User chose not to overwrite
+          this.saveAs(); // Re-open the save as modal
+        }
+      } else {
+        this.path = new_path;
+        this.name = name;
+        this.ext = ext;
+        this._saveFile(false);
       }
-    };
-
-    const onCancel = () => {
-      modal.style.display = "none";
-    };
-
-    saveButton.addEventListener("click", onSave);
-    cancelButton.addEventListener("click", onCancel);
+    } catch (e) {
+      // User canceled the save as modal
+    }
   };
 
   /**

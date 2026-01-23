@@ -91,6 +91,20 @@ export class WssTabs extends HTMLElement {
     this.render();
   }
 
+  renameTab(tabId, newName, newId) {
+    const tab = this._tabs.find((t) => t.id === tabId);
+    if (tab) {
+      tab.name = newName;
+      if (newId) {
+        tab.id = newId;
+        if (this._activeTab === tabId) {
+          this._activeTab = newId;
+        }
+      }
+      this.render();
+    }
+  }
+
   render() {
     if (!this._tabsContainer) return;
     // Clear all existing tabs, but keep the add button
