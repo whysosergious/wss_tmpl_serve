@@ -136,7 +136,7 @@ export class WssEditor extends HTMLElement {
     }
   };
   saveAsModal = null;
-  saveAs = async ({ p, n }) => {
+  saveAs = async ({ p, n } = {}) => {
     this.saveAsModal ??= document.getElementById("save-as-modal-container");
 
     try {

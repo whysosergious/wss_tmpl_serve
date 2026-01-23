@@ -66,16 +66,27 @@ export class WssWorkspace extends HTMLElement {
 
   _addEventListeners() {
     this.wssTabs.addEventListener("tab-added", this._handleTabAdded.bind(this));
-    this.wssTabs.addEventListener("tab-activated", this._handleTabActivated.bind(this));
-    this.wssTabs.addEventListener("tab-closed", this._handleTabClosed.bind(this));
+    this.wssTabs.addEventListener(
+      "tab-activated",
+      this._handleTabActivated.bind(this),
+    );
+    this.wssTabs.addEventListener(
+      "tab-closed",
+      this._handleTabClosed.bind(this),
+    );
     this.addEventListener("rename-tab", this._handleRenameTab.bind(this));
 
     // Listen for file-opened events from wss-file-explorer in the light DOM
     const wssFileExplorer = document.querySelector("wss-file-explorer");
     if (wssFileExplorer) {
-      wssFileExplorer.addEventListener("file-opened", this._handleFileOpened.bind(this));
+      wssFileExplorer.addEventListener(
+        "file-opened",
+        this._handleFileOpened.bind(this),
+      );
     } else {
-      console.warn("wss-file-explorer not found in the light DOM. File opening will not work.");
+      console.warn(
+        "wss-file-explorer not found in the light DOM. File opening will not work.",
+      );
     }
   }
 
@@ -127,7 +138,9 @@ export class WssWorkspace extends HTMLElement {
     const { path, name, content } = event.detail;
     // Check if a tab for this path already exists
     // Using a temporary way to access _tabs for now, will refine (as _tabs is private)
-    const existingTab = Array.from(this.wssTabs._tabs || []).find(tab => tab.id === path); 
+    const existingTab = Array.from(this.wssTabs._tabs || []).find(
+      (tab) => tab.id === path,
+    );
     if (existingTab) {
       this.wssTabs.setActiveTab(existingTab.id);
       // Ensure editor content is updated in case file changed externally
@@ -143,6 +156,8 @@ export class WssWorkspace extends HTMLElement {
 
   _handleRenameTab(event) {
     const { "tab-id": tabId, "new-name": newName } = event.detail;
+    console.log("changing tab name:", tabId, newName, this);
+
     this.wssTabs.renameTab(tabId, newName, newName);
     const editor = this.editorInstances.get(tabId);
     if (editor) {
@@ -177,3 +192,4 @@ export class WssWorkspace extends HTMLElement {
 }
 
 globalThis.customElements.define("wss-workspace", WssWorkspace);
+
