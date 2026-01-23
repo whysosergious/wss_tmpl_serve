@@ -48,9 +48,9 @@ export class WssEditor extends HTMLElement {
   theme = new Compartment();
 
   connectedCallback() {
-    this.id = gen_hash(); // Use tab-id if available, otherwise generate
+    this.id = this.getAttribute("tab-id") ?? gen_hash(); // Use tab-id if available, otherwise generate
     const { path, name, ext } = this.split_fullpath(
-      this.getAttribute("tab-id"),
+      this.getAttribute("tab-path"),
     );
     this.path = path;
     this.name = name;
@@ -115,7 +115,8 @@ export class WssEditor extends HTMLElement {
       new CustomEvent("rename-tab", {
         detail: {
           "tab-id": this.id,
-          "new-name": this.full_path,
+          "new-name": this.full_name,
+          "new-path": this.full_path,
         },
         bubbles: true,
         composed: true,
@@ -142,7 +143,7 @@ export class WssEditor extends HTMLElement {
     try {
       const { path: new_path, name: new_name } = await this.saveAsModal.show({
         path: p ?? this.path,
-        name: n ?? this.name + (this.ext.length ? "." + this.ext : ""),
+        name: n ?? this.full_name,
       });
 
       const { path, name, ext } = this.split_fullpath(
@@ -221,6 +222,14 @@ export class WssEditor extends HTMLElement {
     const _ext = this.ext.length ? "." + this.ext : this.ext;
 
     return this.path + this.name + _ext;
+  }
+
+  /**
+   * join name and ext
+   * @returns (string)
+   */
+  get full_name() {
+    return this.name + (this.ext.length ? "." + this.ext : "");
   }
 
   /**

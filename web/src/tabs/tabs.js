@@ -1,3 +1,5 @@
+import { gen_hash } from "../lib.js";
+
 export class WssTabs extends HTMLElement {
   constructor() {
     super();
@@ -19,7 +21,7 @@ export class WssTabs extends HTMLElement {
     this._tabsContainer = this.shadowRoot.getElementById("tabs-container");
     this._addBtn = this.shadowRoot.getElementById("add-btn");
     this._addBtn.addEventListener("click", () => this.addTab());
-    this.addTab("untitled");
+    this.addTab();
   }
 
   async _fetchCSS() {
@@ -35,9 +37,11 @@ export class WssTabs extends HTMLElement {
     }
   }
 
-  addTab(id, name = "untitled", initialContent = "") { // New signature with id
+  addTab(name = "untitled", path = "/untitled", id, initialContent = "") {
+    // New signature with id
     const tab = {
-      id: id || Date.now(), // Use provided id, or fallback
+      id: id ?? gen_hash(),
+      path,
       name,
     };
     this._tabs.push(tab);
@@ -45,7 +49,7 @@ export class WssTabs extends HTMLElement {
 
     this.dispatchEvent(
       new CustomEvent("tab-added", {
-        detail: { id: tab.id, name: tab.name, initialContent },
+        detail: { id: tab.id, path: tab.path, name: tab.name, initialContent },
         bubbles: true,
         composed: true,
       }),
@@ -91,16 +95,11 @@ export class WssTabs extends HTMLElement {
     this.render();
   }
 
-  renameTab(tabId, newName, newId) {
+  renameTab(tabId, newName, newPath) {
     const tab = this._tabs.find((t) => t.id === tabId);
     if (tab) {
       tab.name = newName;
-      if (newId) {
-        tab.id = newId;
-        if (this._activeTab === tabId) {
-          this._activeTab = newId;
-        }
-      }
+      tab.path = newPath;
       this.render();
     }
   }
@@ -133,3 +132,4 @@ export class WssTabs extends HTMLElement {
 }
 
 globalThis.customElements.define("wss-tabs", WssTabs);
+
