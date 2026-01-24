@@ -118,7 +118,6 @@ export class WssPrompt extends HTMLElement {
     confirm = "ok",
     cancel = null,
   } = {}) {
-    console.log(this);
     this.title.data = title;
     this.message.data = msg;
     this.confirm_text.data = confirm;

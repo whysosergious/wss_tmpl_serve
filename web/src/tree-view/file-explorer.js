@@ -55,6 +55,9 @@ export class WssFileExplorer extends HTMLElement {
         .entry.file:hover {
           cursor: default;
         }
+        .entry.drag-over {
+          background-color: rgba(255, 255, 255, 0.2);
+        }
         .entry-icon {
           width: 1em;
           height: 1em;
@@ -87,6 +90,10 @@ export class WssFileExplorer extends HTMLElement {
 
   async connectedCallback() {
     await sh.ws.ready.promise;
+
+    // Capture currently open directory paths before re-initializing
+    const previouslyOpenPaths = this._getOpenDirectoryPaths();
+
     const rootPath = this.getAttribute("root") || "/";
     const files = await this.listFiles(rootPath);
     this._files = files
@@ -98,7 +105,11 @@ export class WssFileExplorer extends HTMLElement {
             ? -1
             : 1,
       );
-    this.render();
+
+    // Restore previously open directory paths
+    this._setOpenDirectoryPaths(previouslyOpenPaths);
+
+    this.render(); // Initial render or render after state restoration
 
     /** @type {WssContextMenuAPI} */
     this.contextMenu = document.querySelector("wss-context-menu");
@@ -334,9 +345,11 @@ export class WssFileExplorer extends HTMLElement {
           return;
         }
 
-        const fullPath = [newEntry._data.parentPath, new_name]
-          .join("/")
-          .replace(/\/+/, "/");
+        const parent_path =
+          entry._data.type === "dir"
+            ? entry._data.parentPath + "/" + entry._data.name
+            : entry._data.parentPath;
+        const fullPath = [parent_path, new_name].join("/").replace(/\/+/, "/");
 
         // Backend create
         const cmd = `(mkdir ('.${fullPath}' | path dirname)) ; '' | save '.${fullPath}'`;
@@ -447,6 +460,66 @@ export class WssFileExplorer extends HTMLElement {
     }
   }
 
+  /**
+   * Returns an array of paths for all currently open directories.
+   * @returns {string[]}
+   * @private
+   */
+  _getOpenDirectoryPaths() {
+    return this._files
+      .filter((file) => file.type === "dir" && file.open)
+      .map((file) =>
+        [file.parentPath, file.name].join("/").replace(/\/+/g, "/"),
+      );
+  }
+
+  /**
+   * Sets the 'open' state for directories based on a list of paths.
+   * Also ensures parent directories are opened if a child is in the list.
+   * @param {string[]} openPaths
+   * @private
+   */
+  _setOpenDirectoryPaths(openPaths) {
+    const openSet = new Set(openPaths);
+
+    // Mark directories as open based on openPaths
+    this._files.forEach((file) => {
+      if (file.type === "dir") {
+        const fullPath = [file.parentPath, file.name]
+          .join("/")
+          .replace(/\/+/g, "/");
+        if (openSet.has(fullPath)) {
+          file.open = true;
+        } else {
+          file.open = false; // Ensure it's closed if not in the set
+        }
+      }
+    });
+
+    // Ensure all parent directories of open directories are also open
+    let changed = true;
+    while (changed) {
+      changed = false;
+      this._files.forEach((file) => {
+        if (file.type === "dir" && file.open) {
+          const parentPath = file.parentPath;
+          if (parentPath !== "/") {
+            // Don't try to open the root's parent
+            const parentDir = this._files.find(
+              (p) =>
+                [p.parentPath, p.name].join("/").replace(/\/+/g, "/") ===
+                  parentPath && p.type === "dir",
+            );
+            if (parentDir && !parentDir.open) {
+              parentDir.open = true;
+              changed = true;
+            }
+          }
+        }
+      });
+    }
+  }
+
   render() {
     this._root.innerHTML = "";
     this._files.forEach((file) => {
@@ -465,10 +538,17 @@ export class WssFileExplorer extends HTMLElement {
     node.className = "entry " + (isDir ? "dir" : "file");
     node.dataset.path = path;
     node.dataset.type = isDir ? "dir" : "file";
+    node.draggable = true; // Make nodes draggable
     node.style.paddingLeft = `${file.depth * 16 + 8}px`;
     if (file.open) {
       node.classList.add("open");
     }
+
+    node.addEventListener("dragstart", (e) => {
+      e.stopPropagation();
+      e.dataTransfer.setData("text/plain", path.trim()); // Trim the path
+      e.dataTransfer.effectAllowed = "move";
+    });
 
     const icon = document.createElement("span");
     icon.className = "entry-icon";
@@ -485,6 +565,58 @@ export class WssFileExplorer extends HTMLElement {
 
     node.appendChild(icon);
     node.appendChild(nameSpan);
+
+    // Apply dragover, dragleave, and drop listeners to all nodes (files and directories)
+    node.addEventListener("dragover", (e) => {
+      e.preventDefault(); // Allow drop
+      e.stopPropagation();
+      if (e.dataTransfer.effectAllowed === "move") {
+        node.classList.add("drag-over");
+      }
+    });
+
+    node.addEventListener("dragleave", (e) => {
+      e.stopPropagation();
+      node.classList.remove("drag-over");
+    });
+
+    node.addEventListener("drop", async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      node.classList.remove("drag-over");
+
+      const sourcePath = e.dataTransfer.getData("text/plain").trim();
+      let finalDestinationPath;
+
+      if (node._data.type === "file") {
+        // If dropping onto a file, the destination is the file's parent directory
+        finalDestinationPath = node._data.parentPath.trim();
+      } else {
+        // If dropping onto a directory, the destination is the directory itself
+        finalDestinationPath = path.trim();
+      }
+
+      if (
+        sourcePath === finalDestinationPath ||
+        sourcePath.startsWith(finalDestinationPath + "/")
+      ) {
+        // Do not move a folder into itself or its subfolder
+        return;
+      }
+
+      const sourceParts = sourcePath.split("/");
+      const fileName = sourceParts[sourceParts.length - 1];
+      const newPath = finalDestinationPath + "/" + fileName;
+
+      // Perform the move using the existing rename logic (mv command)
+      await sh.ws.send({
+        type: "cmd",
+        body: `mv -f '.${sourcePath}' '.${newPath}'`,
+      });
+
+      // Refresh the explorer
+      this.connectedCallback();
+    });
 
     if (isDir) {
       node.addEventListener("click", async (e) => {
