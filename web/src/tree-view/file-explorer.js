@@ -21,6 +21,11 @@ const FILE_ICON = `
 `;
 
 export class WssFileExplorer extends HTMLElement {
+  /** @type {Array<{name: string, type: string, depth: number, parentPath: string, open: boolean}>} */
+  _files = [];
+  /** @type {HTMLElement} */
+  _root;
+
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
@@ -78,7 +83,6 @@ export class WssFileExplorer extends HTMLElement {
       <div id="root"></div>
     `;
     this._root = this.shadowRoot.getElementById("root");
-    this._files = [];
   }
 
   async connectedCallback() {
@@ -87,13 +91,115 @@ export class WssFileExplorer extends HTMLElement {
     const files = await this.listFiles(rootPath);
     this._files = files
       .map((file) => ({ ...file, depth: 0, parentPath: rootPath, open: false }))
-      .sort((a, b) => {
-        if (a.type === b.type) {
-          return a.name.localeCompare(b.name);
-        }
-        return a.type === "dir" ? -1 : 1;
-      });
+      .sort((a, b) =>
+        a.type === b.type
+          ? a.name.localeCompare(b.name)
+          : a.type === "dir"
+            ? -1
+            : 1,
+      );
     this.render();
+
+    /** @type {WssContextMenuAPI} */
+    this.contextMenu = document.querySelector("wss-context-menu");
+    this.attachContextMenu();
+  }
+
+  /** @private */
+  attachContextMenu() {
+    /** @type {WssContextMenuAPI} */
+    this.contextMenu = document.querySelector("wss-context-menu");
+
+    // CRITICAL: Capture phase on HOST (pierces shadow DOM)
+    this.addEventListener(
+      "contextmenu",
+      (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        /** @type {HTMLElement} */
+        const target = e.composedPath()[0];
+        const entry = target.closest(".entry");
+
+        /** @type {ContextData} */
+        let context;
+        if (!entry?.dataset.path) {
+          context = {
+            type: "empty",
+            path: this.currentPath || "/",
+            name: "",
+            isDir: false,
+          };
+        } else {
+          const file = this._files.find(
+            (f) => [f.parentPath, f.name].join("/") === entry.dataset.path,
+          );
+          context = {
+            type: file?.type || "file",
+            path: entry.dataset.path,
+            name: file?.name || "",
+            isDir: file?.type === "dir",
+          };
+        }
+
+        this.contextMenu?.show(/** @type {MouseEvent} */ (e), context);
+      },
+      { capture: true },
+    ); // CAPTURE PHASE - blocks browser menu
+  }
+
+  /**
+   * @param {string} action
+   * @param {ContextData} context
+   */
+  async handleContextAction(action, context) {
+    try {
+      switch (action) {
+        case "new-file":
+          await this.createNewFile(context.path);
+          break;
+        case "new-folder":
+          await this.createNewFolder(context.path);
+          break;
+        case "rename":
+          await this.renameItem(context.path, context.name);
+          break;
+        case "delete":
+          await this.deleteItem(context.path);
+          break;
+      }
+      this.refresh_path(context.path);
+    } catch (err) {
+      console.error(`Context action failed: ${action}`, err);
+    }
+  }
+
+  async createNewFile(parentPath) {
+    const parentDir = parentPath.endsWith("/")
+      ? parentPath.slice(0, -1)
+      : parentPath;
+    await sh.exec(`touch "${parentDir}/newfile.txt"`);
+  }
+
+  async createNewFolder(parentPath) {
+    const parentDir = parentPath.endsWith("/")
+      ? parentPath.slice(0, -1)
+      : parentPath;
+    await sh.exec(`mkdir "${parentDir}/newfolder"`);
+  }
+
+  async renameItem(path, oldName) {
+    const dir = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : ".";
+    const newName = prompt("New name:", oldName);
+    if (newName && newName !== oldName) {
+      await sh.exec(`mv "${path}" "${dir}/${newName}"`);
+    }
+  }
+
+  async deleteItem(path) {
+    if (confirm(`Delete ${path}?`)) {
+      await sh.exec(`rm -rf "${path}"`);
+    }
   }
 
   async listFiles(path) {
@@ -191,6 +297,7 @@ export class WssFileExplorer extends HTMLElement {
         );
       });
     }
+
     return node;
   }
 
