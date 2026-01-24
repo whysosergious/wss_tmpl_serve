@@ -1,4 +1,3 @@
-// web/src/lib.js
 export * from "https://cdn.jsdelivr.net/npm/@msgpack/msgpack@3.1.3/dist.esm/index.mjs";
 
 /// gens
@@ -89,3 +88,89 @@ export class MakeUID {
 
 export const uid = new MakeUID();
 
+/**
+ * @typedef {Object} CreateOptions
+ * @property {Object<string,string>} [attr] - HTML attributes
+ * @property {Object<string,string>} [data] - data-* attributes
+ * @property {Object} [private] - Private fields/properties
+ * @property {string} [text] - Text content
+ * @property {string | HTMLElement | DocumentFragment} [html] - InnerHTML or child
+ * @property {Array<HTMLElement>} [children] - Child elements
+ * @property {EventListenerOrEventListenerObject} [on] - Event listeners {click: fn}
+ */
+
+/**
+ * Factory for typed HTML elements with private data
+ * @param {string} tag
+ * @param {CreateOptions | string | null} [options]
+ * @returns {HTMLElement}
+ */
+export function create_el(tag, options = {}) {
+  const el = document.createElement(tag);
+
+  // String options → className
+  if (typeof options === "string") {
+    el.className = options;
+    return el;
+  }
+
+  // Attributes
+  const {
+    attr = {},
+    data = {},
+    private: priv = {},
+    text,
+    html,
+    children = [],
+    on = {},
+  } = options;
+
+  Object.entries(attr).forEach(([k, v]) => el.setAttribute(k, v));
+  Object.entries(data).forEach(([k, v]) => el.setAttribute(`data-${k}`, v));
+
+  // Private fields (hidden, enumerable false)
+  Object.entries(priv).forEach(([k, v]) => {
+    Object.defineProperty(el, `_${k}`, {
+      value: v,
+      writable: true,
+      enumerable: false,
+      configurable: true,
+    });
+  });
+
+  // Content
+  if (text) el.textContent = text;
+  if (html) {
+    if (typeof html === "string") el.innerHTML = html;
+    else if (html instanceof HTMLElement || html instanceof DocumentFragment) {
+      el.appendChild(html);
+    }
+  }
+  children.forEach((child) => el.appendChild(child));
+
+  // Events
+  Object.entries(on).forEach(([event, handler]) => {
+    el.addEventListener(event, handler);
+  });
+
+  return el;
+}
+
+// Usage examples:
+// /** @type {HTMLElement} */
+// const el = create("div", {
+//   attr: { id: "foo", tabindex: "0" },
+//   data: { path: "/bar", type: "file" },
+//   private: {
+//     run: () => console.log("k"),
+//     data: { hidden: true },
+//   },
+//   text: "Hello",
+//   on: {
+//     click: () => el._run(),
+//     keydown: (e) => console.log(e.key),
+//   },
+// });
+
+// Access private: el._run() → 'k'
+// Data attrs: el.dataset.path → '/bar'

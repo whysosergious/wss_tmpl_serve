@@ -129,6 +129,16 @@ export class WssFileExplorer extends HTMLElement {
             path: this.currentPath || "/",
             name: "",
             isDir: false,
+            target,
+            items: [
+              {
+                label: "New",
+                action: () => {
+                  console.log("new");
+                },
+                icon: null,
+              },
+            ],
           };
         } else {
           const file = this._files.find(
@@ -139,6 +149,31 @@ export class WssFileExplorer extends HTMLElement {
             path: entry.dataset.path,
             name: file?.name || "",
             isDir: file?.type === "dir",
+            target,
+            items: [
+              {
+                label: "New",
+                action: () => {
+                  console.log("new");
+                },
+                icon: null,
+              },
+              {
+                label: "Rename",
+                action: () => {
+                  console.log("rename", [target]);
+                },
+                icon: null,
+              },
+              { separator: true },
+              {
+                label: "Delete",
+                action: () => {
+                  console.log("delete");
+                },
+                icon: null,
+              },
+            ],
           };
         }
 
@@ -227,8 +262,10 @@ export class WssFileExplorer extends HTMLElement {
     const path = [file.parentPath, file.name].join("/").replace(/\/+/g, "/");
 
     const node = document.createElement("div");
+    node._data = file;
     node.className = "entry " + (isDir ? "dir" : "file");
     node.dataset.path = path;
+    node.dataset.type = isDir ? "dir" : "file";
     node.style.paddingLeft = `${file.depth * 16 + 8}px`;
     if (file.open) {
       node.classList.add("open");

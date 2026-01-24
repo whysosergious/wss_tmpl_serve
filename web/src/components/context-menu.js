@@ -1,3 +1,4 @@
+import { create_el } from "../lib.js";
 /**
  * @typedef {'file' | 'dir' | 'empty'} ContextType
  * @typedef {{
@@ -128,10 +129,9 @@ class WssContextMenu extends HTMLElement {
 
   /** @param {MouseEvent} event */
   show(event, context) {
-    this.context = context;
     this.style.left = `${event.pageX}px`;
     this.style.top = `${event.pageY}px`;
-    this.renderMenu();
+    this.renderMenu(event, context);
     this.setAttribute("open", "");
     event.preventDefault();
     event.stopPropagation();
@@ -143,65 +143,27 @@ class WssContextMenu extends HTMLElement {
   }
 
   /** @private */
-  renderMenu() {
+  renderMenu(event, context) {
     const menu = /** @type {HTMLDivElement} */ (
       this.shadowRoot.querySelector(".menu")
     );
-    const { type, isDir } = this.context;
 
-    const items = [
-      ...(type !== "empty"
-        ? [
-            {
-              label: isDir ? "New Folder" : "New File",
-              action: isDir ? "new-folder" : "new-file",
-              icon: "",
-            },
-          ]
-        : []),
-      ...(type !== "empty"
-        ? [{ label: "Rename", action: "rename", icon: "" }, { separator: true }]
-        : []),
-      ...(type !== "empty"
-        ? [{ label: "Delete", action: "delete", icon: "" }]
-        : []),
-      ...(type === "empty"
-        ? [
-            { label: "New Folder", action: "new-folder", icon: "" },
-            { label: "New File", action: "new-file", icon: "" },
-          ]
-        : []),
-    ];
+    const items = context.items.map((item) =>
+      item.separator
+        ? create_el("div", { attr: { class: "separator" } })
+        : create_el("button", {
+            text: item.label,
+            private: { action: item.action },
+          }),
+    );
 
-    menu.innerHTML = items
-      .map((item) =>
-        item.separator
-          ? '<div class="separator"></div>'
-          : `<button data-action="${item.action}">${item.label}</button>`,
-      )
-      .join("");
+    menu.replaceChildren(...items);
   }
 
   /** @private */
   handleClick(e) {
     e.stopPropagation();
-    const btn = e.target.closest("button");
-    if (!btn) return;
-
-    /** @type {'new-file' | 'new-folder' | 'rename' | 'delete'} */
-    const action = /** @type {HTMLButtonElement} */ (btn).dataset.action;
-
-    this.dispatchEvent(
-      new CustomEvent("context-action", {
-        detail: /** @type {ContextActionDetail} */ ({
-          action,
-          context: this.context,
-          path: this.context.path,
-        }),
-        bubbles: true,
-        composed: true,
-      }),
-    );
+    e.target._action();
 
     this.hide();
   }
