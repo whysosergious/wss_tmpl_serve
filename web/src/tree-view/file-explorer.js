@@ -596,10 +596,7 @@ export class WssFileExplorer extends HTMLElement {
         finalDestinationPath = path.trim();
       }
 
-      if (
-        sourcePath === finalDestinationPath ||
-        sourcePath.startsWith(finalDestinationPath + "/")
-      ) {
+      if (sourcePath === finalDestinationPath) {
         // Do not move a folder into itself or its subfolder
         return;
       }
@@ -609,10 +606,15 @@ export class WssFileExplorer extends HTMLElement {
       const newPath = finalDestinationPath + "/" + fileName;
 
       // Perform the move using the existing rename logic (mv command)
-      await sh.ws.send({
+      const mvResult = await sh.ws.send({
         type: "cmd",
         body: `mv -f '.${sourcePath}' '.${newPath}'`,
       });
+
+      if (mvResult.body.trim() !== "") {
+        console.error("Move command failed:", mvResult.body);
+        return; // Stop execution if move failed
+      }
 
       // Refresh the explorer for both source and destination paths
       const sourceParentPath = sourcePath.substring(
@@ -729,7 +731,6 @@ export class WssFileExplorer extends HTMLElement {
             return [fullPath, f.open];
           }),
       );
-
       const newFiles = files
         .map((f) => {
           const fullPath = [path, f.name].join("/").replace(/\/+/g, "/");
