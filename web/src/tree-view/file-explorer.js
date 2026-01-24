@@ -129,7 +129,6 @@ export class WssFileExplorer extends HTMLElement {
             path: this.currentPath || "/",
             name: "",
             isDir: false,
-            target,
             items: [
               {
                 label: "New",
@@ -149,7 +148,6 @@ export class WssFileExplorer extends HTMLElement {
             path: entry.dataset.path,
             name: file?.name || "",
             isDir: file?.type === "dir",
-            target,
             items: [
               {
                 label: "New",
@@ -161,7 +159,72 @@ export class WssFileExplorer extends HTMLElement {
               {
                 label: "Rename",
                 action: () => {
-                  console.log("rename", [target]);
+                  entry.contentEditable = true;
+                  entry.focus();
+
+                  const abc = new AbortController();
+                  const original_text = entry.innerText;
+                  const original_path = (
+                    entry._data.parentPath +
+                    "/" +
+                    original_text
+                  ).replace(/\/+/, "/");
+
+                  entry.addEventListener(
+                    "keydown",
+                    (e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        e.stopImmediatePropagation();
+
+                        console.log(e.key);
+                        entry.blur();
+                      }
+                      // // no wanna work for some reason
+                      // if (e.key === "Escape") {
+                      //   console.log(e.key);
+                      // }
+                    },
+                    { signal: abc.signal },
+                  );
+
+                  entry.addEventListener(
+                    "blur",
+                    async (e) => {
+                      console.log(e, entry._data, entry.innerText);
+
+                      const new_name = entry.innerText;
+                      const path = (
+                        entry._data.parentPath +
+                        "/" +
+                        new_name
+                      ).replace(/\/+/, "/");
+                      const exists = await sh.ws.send({
+                        type: "cmd",
+                        body: `'.${path}' | path exists`,
+                      });
+
+                      if (exists.body.trim() === "true") {
+                        await sh.components.prompt.show({
+                          title: "----",
+                          msg: "File already exists",
+                          confirm: "Ok",
+                        });
+                        entry.focus();
+                      } else {
+                        sh.ws.send({
+                          type: "cmd",
+                          body: `mv -f '.${original_path}' '.${path}'`,
+                        });
+                        entry.dataset.path = path;
+                        entry._data.name = new_name;
+                        entry.contentEditable = false;
+                        abc.abort();
+                        this.refresh_path(entry._data.parentPath);
+                      }
+                    },
+                    { signal: abc.signal },
+                  );
                 },
                 icon: null,
               },
@@ -295,12 +358,12 @@ export class WssFileExplorer extends HTMLElement {
           const index = this._files.findIndex(
             (f) => f.name === file.name && f.parentPath === file.parentPath,
           );
-          const files = await this.listFiles(path);
+          const files = await this.listFiles(node.dataset.path);
           const newFiles = files
             .map((f) => ({
               ...f,
               depth: file.depth + 1,
-              parentPath: path,
+              parentPath: node.dataset.path,
               open: false,
             }))
             .sort((a, b) => {
@@ -324,7 +387,7 @@ export class WssFileExplorer extends HTMLElement {
       // It's a file, add a click listener to open it
       node.addEventListener("click", async (e) => {
         e.stopPropagation();
-        const content = await this.readFileContent(path);
+        const content = await this.readFileContent(node.dataset.path);
         this.dispatchEvent(
           new CustomEvent("file-opened", {
             detail: { path, name: file.name, content },

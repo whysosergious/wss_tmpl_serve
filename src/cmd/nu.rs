@@ -12,7 +12,14 @@ pub async fn execute_command(command: &str) -> Result<String, CommandError> {
     //     return Err(CommandError::CommandNotAllowed);
     // }
 
-    let output = Command::new("nu").arg("-c").arg(command).output().await?;
+    let cmd = format!("source scripts/mod.nu ; {}", command);
+
+    let output = Command::new("nu")
+        .arg("-c")
+        .arg(cmd)
+        .env("NU_LIB_DIRS", "/scripts")
+        .output()
+        .await?;
 
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout).to_string())

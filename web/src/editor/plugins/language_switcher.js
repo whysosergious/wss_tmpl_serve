@@ -137,8 +137,9 @@ async function initLangCache() {
     ["cts", modern.typescript],
     ["tsx", modern.tsx],
 
-    // Rust (1)
+    // Rust (2)
     ["rs", modern.rust],
+    ["nu", modern.rust],
 
     // HTML/XML (6)
     ["html", modern.html],
