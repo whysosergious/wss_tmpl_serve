@@ -614,8 +614,13 @@ export class WssFileExplorer extends HTMLElement {
         body: `mv -f '.${sourcePath}' '.${newPath}'`,
       });
 
-      // Refresh the explorer
-      this.connectedCallback();
+      // Refresh the explorer for both source and destination paths
+      const sourceParentPath = sourcePath.substring(
+        0,
+        sourcePath.lastIndexOf("/"),
+      );
+      await this.refresh_path(sourceParentPath);
+      await this.refresh_path(finalDestinationPath);
     });
 
     if (isDir) {
@@ -700,22 +705,41 @@ export class WssFileExplorer extends HTMLElement {
     }
     const parent_dir = this._files.find((f) => {
       const f_path = [f.parentPath, f.name].join("/").replace(/\/+/g, "/");
-      return f_path === path && f.type === "dir" && f.open;
+      return f_path === path && f.type === "dir";
     });
 
     if (parent_dir) {
+      if (!parent_dir.open) {
+        parent_dir.open = true;
+      }
+
       const index = this._files.indexOf(parent_dir);
       const children = this._getChildren(parent_dir, index);
       this._files.splice(index + 1, children.length);
 
       const files = await this.listFiles(path);
+      // Map existing open state to new files
+      const existingOpenStates = new Map(
+        this._files
+          .filter((f) => f.type === "dir")
+          .map((f) => {
+            const fullPath = [f.parentPath, f.name]
+              .join("/")
+              .replace(/\/+/g, "/");
+            return [fullPath, f.open];
+          }),
+      );
+
       const newFiles = files
-        .map((f) => ({
-          ...f,
-          depth: parent_dir.depth + 1,
-          parentPath: path,
-          open: false,
-        }))
+        .map((f) => {
+          const fullPath = [path, f.name].join("/").replace(/\/+/g, "/");
+          return {
+            ...f,
+            depth: parent_dir.depth + 1,
+            parentPath: path,
+            open: existingOpenStates.get(fullPath) || false, // Use existing state or default to false
+          };
+        })
         .sort((a, b) => {
           if (a.type === b.type) {
             return a.name.localeCompare(b.name);
