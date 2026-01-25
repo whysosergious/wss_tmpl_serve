@@ -351,8 +351,12 @@ export class WssFileExplorer extends HTMLElement {
             : entry._data.parentPath;
         const fullPath = [parent_path, new_name].join("/").replace(/\/+/, "/");
 
-        // Backend create
-        const cmd = `(mkdir ('.${fullPath}' | path dirname)) ; '' | save '.${fullPath}'`;
+        let cmd;
+        if (!/\/$/.test(fullPath)) {
+          cmd = `mkdir ('.${fullPath}' | path dirname) ; '' | save '.${fullPath}'`;
+        } else {
+          cmd = `mkdir .${fullPath}`;
+        }
         await sh.ws.send({ type: "cmd", body: cmd });
 
         // Update entry
@@ -362,7 +366,7 @@ export class WssFileExplorer extends HTMLElement {
         abc.abort();
 
         // Refresh parent to pick up new file + fix depth/sort
-        this.refresh_path(newEntry._data.parentPath);
+        this.refresh_path(parent_path);
       },
       { signal: abc.signal },
     );
