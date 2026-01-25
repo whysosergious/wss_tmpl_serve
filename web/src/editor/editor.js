@@ -105,7 +105,7 @@ export class WssEditor extends HTMLElement {
     // Proper escaping for shell
     const escaped_content = content.replaceAll("'", "'\\''");
     const force_flag = force ? "-f" : "";
-    const command = `'${escaped_content}' | save ${force_flag} './${this.full_path}'`;
+    const command = `${escaped_content} | save ${force_flag} './${this.full_path}'`;
     sh.ws.send({
       type: "cmd",
       body: command,

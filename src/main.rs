@@ -10,7 +10,7 @@ mod cmd;
 mod http;
 mod ws;
 
-use http::routes::index;
+use http::routes::{index, project};
 use ws::connection::{handler, Clients};
 
 #[tokio::main]
@@ -31,6 +31,8 @@ async fn main() -> std::io::Result<()> {
             //.configure(configure)
             .service(Files::new("/web", "./web"))
             .service(index)
+            .service(Files::new("/project", "./project"))
+            .service(project)
             .wrap(Logger::default())
             .app_data(web::Data::new(clients.clone()))
             .route("/ws/", web::get().to(handler))
