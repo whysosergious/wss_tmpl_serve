@@ -43,6 +43,9 @@ import {
   StreamLanguage,
 } from "../pme/pme.mod.js"; // adjust path if needed [web:42][web:49][web:50]
 
+// custom language parsers
+// import { nushell } from "./lang/nushell.esm.js";
+
 // completions
 import { globalCompletions } from "../completions.js"; // your global completion source [web:45]
 
@@ -86,6 +89,7 @@ export const languages = {
   mariadb: () => [sql({ dialect: MariaSQL })],
   plsql: () => [sql({ dialect: PLSQL })],
   rust: () => [rust({ autocomplete: true })],
+  nushell: () => [nushell()],
   php: () => [php()],
   java: () => [java()],
   cpp: () => [cpp()],

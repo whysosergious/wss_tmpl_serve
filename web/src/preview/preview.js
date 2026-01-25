@@ -21,9 +21,19 @@ export class WssPreviewPanel extends HTMLElement {
           font-size: 12px;
           flex-shrink: 0;
         }
+        .zoom-controls {
+          display: flex;
+          position: relative;
+          align-items: center;
+        }
+        .zoom-controls svg {
+          margin-right: 2px;
+        }
         .preview-toolbar button {
           background: none;
           border: 1px solid #555;
+          border: none;
+          width: 20px;
           color: #ccc;
           padding: 2px 5px;
           cursor: pointer;
@@ -60,13 +70,15 @@ export class WssPreviewPanel extends HTMLElement {
         }
       </style>
       <div class="preview-toolbar">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="11" cy="11" r="8"></circle>
-          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-        </svg>
-        <button id="zoom-out">-</button>
-        <span id="zoom-percentage">100%</span>
-        <button id="zoom-in">+</button>
+        <div class="zoom-controls">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <button id="zoom-out">-</button>
+          <span id="zoom-percentage">100%</span>
+          <button id="zoom-in">+</button>
+        </div>
         <span id="preview-dimensions"></span>
       </div>
       <div class="resizable-iframe-container">
