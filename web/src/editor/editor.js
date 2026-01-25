@@ -102,10 +102,25 @@ export class WssEditor extends HTMLElement {
 
   _saveFile(force = false) {
     const content = this.getContent();
-    // Proper escaping for shell
-    const escaped_content = content.replaceAll("'", "'\\''");
     const force_flag = force ? "-f" : "";
-    const command = `${escaped_content} | save ${force_flag} './${this.full_path}'`;
+
+    // Dynamically determine a Nushell raw string delimiter to safely embed content.
+    // This prevents issues if the content itself contains the default raw string delimiters.
+    let nushell_raw_string_prefix = "r#\'";
+    let nushell_raw_string_suffix = "\'#";
+    let hashes = 0;
+    while (
+      content.includes(
+        nushell_raw_string_prefix.slice(0, -1) +
+          nushell_raw_string_suffix.slice(1),
+      )
+    ) {
+      hashes++;
+      nushell_raw_string_prefix = `r#${"#".repeat(hashes)}"`;
+      nushell_raw_string_suffix = `"#${"#".repeat(hashes)}`;
+    }
+
+    const command = `${nushell_raw_string_prefix}${content}${nushell_raw_string_suffix} | save ${force_flag} './${this.full_path}'`;
     sh.ws.send({
       type: "cmd",
       body: command,

@@ -161,7 +161,6 @@ export class WssWorkspace extends HTMLElement {
       "new-name": newName,
       "new-path": newPath,
     } = event.detail;
-    console.log("changing tab name:", tabId, newName, newPath, this);
 
     this.wssTabs.renameTab(tabId, newName, newPath);
     // const editor = this.editorInstances.get(tabId);
