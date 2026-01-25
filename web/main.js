@@ -7,6 +7,7 @@ import "/src/tree-view/mod.js";
 import "/src/tabs/tabs.js";
 import "/src/workspace/workspace.js";
 import "/src/components/mod.js";
+import { WssPreviewPanel } from "/src/preview/mod.js";
 
 document.addEventListener("DOMContentLoaded", () => {
   const tabBar = document.querySelector(".tab-bar");
@@ -271,4 +272,106 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Apply layout on initial load
   applyLayout();
+
+  // Resizing logic (Horizontal - for Preview Panel)
+  const previewContainer = document.querySelector(".preview-container");
+  const previewResizer = document.getElementById("preview-resizer");
+
+  const MIN_PREVIEW_WIDTH = 150; // Minimum width for the preview panel
+
+  let isPreviewResizing = false;
+  let lastXPreview;
+  let previewInitialWidthPx;
+  let editorTerminalInitialWidthPxPreview; // Refers to the editor-terminal-container
+
+  function startResizePreviewPanel(e) {
+    isPreviewResizing = true;
+    lastXPreview = e.clientX;
+    previewInitialWidthPx = previewContainer.offsetWidth;
+    editorTerminalInitialWidthPxPreview = editorTerminalContainer.offsetWidth;
+
+    // Temporarily disable transition for smooth resizing
+    previewContainer.style.transition = "none";
+    editorTerminalContainer.style.transition = "none";
+
+    // Ensure flex properties for dragging
+    previewContainer.style.flexGrow = "0";
+    previewContainer.style.flexShrink = "0";
+    editorTerminalContainer.style.flexGrow = "1";
+    editorTerminalContainer.style.flexShrink = "1";
+
+    document.addEventListener("mousemove", resizePreviewPanel);
+    document.addEventListener("mouseup", stopResizePreviewPanel);
+    document.body.style.cursor = "ew-resize";
+    document.body.style.userSelect = "none";
+    document.body.style.pointerEvents = "none";
+  }
+
+  function resizePreviewPanel(e) {
+    if (!isPreviewResizing) return;
+
+    const deltaX = e.clientX - lastXPreview;
+    const totalContentWidth = mainLayoutContainer.offsetWidth - fileExplorerContainer.offsetWidth - rightResizer.offsetWidth; // Total width available for editor + preview
+
+    let newPreviewWidthPx = previewInitialWidthPx - deltaX;
+    let newEditorTerminalWidthPx = totalContentWidth - newPreviewWidthPx;
+
+    // Boundary checks
+    if (newPreviewWidthPx < MIN_PREVIEW_WIDTH) {
+      newPreviewWidthPx = MIN_PREVIEW_WIDTH;
+    }
+    if (newEditorTerminalWidthPx < MIN_EDITOR_TERMINAL_WIDTH) {
+      newPreviewWidthPx = totalContentWidth - MIN_EDITOR_TERMINAL_WIDTH;
+    }
+
+    // Final check
+    if (newPreviewWidthPx > totalContentWidth - MIN_EDITOR_TERMINAL_WIDTH) {
+      newPreviewWidthPx = totalContentWidth - MIN_EDITOR_TERMINAL_WIDTH;
+    }
+    if (newPreviewWidthPx < MIN_PREVIEW_WIDTH) {
+      newPreviewWidthPx = MIN_PREVIEW_WIDTH;
+    }
+    
+    previewContainer.style.flexBasis = `${newPreviewWidthPx}px`;
+    localStorage.setItem("previewPanelWidth", `${newPreviewWidthPx}px`);
+  }
+
+  function stopResizePreviewPanel() {
+    isPreviewResizing = false;
+    document.removeEventListener("mousemove", resizePreviewPanel);
+    document.removeEventListener("mouseup", stopResizePreviewPanel);
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+    document.body.style.pointerEvents = "";
+    
+    previewContainer.style.transition = "";
+    editorTerminalContainer.style.transition = "";
+  }
+
+  previewResizer.addEventListener("mousedown", startResizePreviewPanel);
+
+  // Update applyLayout to load previewPanelWidth
+  const originalApplyLayout = applyLayout;
+  applyLayout = () => {
+    originalApplyLayout(); // Call existing applyLayout logic
+
+    const savedPreviewPanelWidth = localStorage.getItem("previewPanelWidth");
+    if (savedPreviewPanelWidth) {
+      let parsedWidth = parseInt(savedPreviewPanelWidth);
+      if (parsedWidth < MIN_PREVIEW_WIDTH) {
+        parsedWidth = MIN_PREVIEW_WIDTH;
+      }
+      
+      const totalContentWidth = mainLayoutContainer.offsetWidth - fileExplorerContainer.offsetWidth - rightResizer.offsetWidth;
+      if (totalContentWidth - parsedWidth < MIN_EDITOR_TERMINAL_WIDTH) {
+        parsedWidth = totalContentWidth - MIN_EDITOR_TERMINAL_WIDTH;
+      }
+
+      previewContainer.style.flexBasis = `${parsedWidth}px`;
+    }
+  };
+
+  // Re-apply layout with new preview panel width logic
+  applyLayout();
+
 });

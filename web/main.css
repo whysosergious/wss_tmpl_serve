@@ -215,3 +215,94 @@ wss-tabs {
   width: 100%;
   flex-shrink: 0;
 }
+
+/* Preview Panel Styles */
+.preview-container {
+  display: flex;
+  flex-direction: column;
+  flex-basis: 350px; /* Initial width */
+  min-width: 200px; /* Minimum width */
+  flex-grow: 0;
+  flex-shrink: 0;
+  background-color: #252526;
+  padding: 5px;
+  overflow: hidden;
+  position: relative; /* Make this a positioning context */
+}
+
+.resizer.preview-resizer {
+  width: 2px;
+  background-color: #222;
+  cursor: ew-resize;
+  flex-shrink: 0;
+  position: relative;
+  height: 100%;
+}
+
+.resizer.preview-resizer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -3px;
+  width: 7px;
+  cursor: ew-resize;
+  background-color: transparent;
+  z-index: 10;
+}
+
+.preview-toolbar {
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px; /* Add space between button and dimensions */
+  color: #ccc;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+#recenter-iframe-button {
+  background-color: #3a3d41;
+  border: 1px solid #606368;
+  color: #ccc;
+  padding: 2px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+#recenter-iframe-button:hover {
+  background-color: #4b4e52;
+}
+
+.resizable-iframe-container {
+  position: relative;
+  border: 1px solid #444;
+  width: 96%; /* 96% of parent */
+  margin: 10px auto; /* Center horizontally, provide top margin */
+  height: 50%; /* Default height, will be resized by JS */
+  overflow: visible;
+}
+
+#preview-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background-color: #fff;
+}
+
+.iframe-resizer {
+  position: absolute;
+  background: #007acc;
+  z-index: 20;
+}
+
+/* Only bottom resizer is needed */
+.iframe-resizer-bottom {
+  width: 100%;
+  height: 5px;
+  bottom: -2.5px;
+  left: 0;
+  cursor: ns-resize;
+}
+

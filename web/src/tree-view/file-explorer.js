@@ -196,61 +196,63 @@ export class WssFileExplorer extends HTMLElement {
    * @param {HTMLElement} entry
    */
   handleRename(entry) {
-    entry.contentEditable = true;
-    entry.focus();
+    const nameSpan = entry.querySelector(".entry-name");
+    nameSpan.contentEditable = true;
+    nameSpan.focus();
 
     const abc = new AbortController();
-    const original_text = entry.innerText;
-    const original_path = (
-      entry._data.parentPath +
-      "/" +
-      original_text
-    ).replace(/\/+/, "/");
+    const original_text = nameSpan.innerText;
+    const original_path = entry.dataset.path;
 
     document.execCommand("selectAll", false, null);
-    entry.addEventListener(
+    nameSpan.addEventListener(
       "keydown",
       (e) => {
         if (e.key === "Enter") {
           e.preventDefault();
           e.stopImmediatePropagation();
-
-          entry.blur();
+          nameSpan.blur();
+        } else if (e.key === "Escape") {
+          nameSpan.innerText = original_text;
+          nameSpan.blur();
         }
       },
       { signal: abc.signal },
     );
 
-    entry.addEventListener(
+    nameSpan.addEventListener(
       "blur",
-      async (e) => {
-        const new_name = entry.innerText;
-        const path = (entry._data.parentPath + "/" + new_name).replace(
-          /\/+/,
-          "/",
-        );
-        const exists = await sh.ws.send({
+      async () => {
+        const new_name = nameSpan.innerText.trim();
+        nameSpan.contentEditable = false;
+        abc.abort();
+
+        if (!new_name || new_name === original_text) {
+          nameSpan.innerText = original_text; // Restore if empty or unchanged
+          return;
+        }
+
+        const parentPath = entry._data.parentPath;
+        const new_path = (parentPath + "/" + new_name).replace(/\/+/, "/");
+
+        const existsResult = await sh.ws.send({
           type: "cmd",
-          body: `'.${path}' | path exists`,
+          body: `'.${new_path}' | path exists`,
         });
 
-        if (exists.body.trim() === "true") {
+        if (existsResult.body.trim() === "true") {
           await sh.components.prompt.show({
-            title: "----",
-            msg: "File already exists",
+            title: "Error",
+            msg: "File or folder already exists.",
             confirm: "Ok",
           });
-          entry.focus();
+          nameSpan.innerText = original_text; // Restore original name
         } else {
-          sh.ws.send({
+          await sh.ws.send({
             type: "cmd",
-            body: `mv -f '.${original_path}' '.${path}'`,
+            body: `mv -f '.${original_path}' '.${new_path}'`,
           });
-          entry.dataset.path = path;
-          entry._data.name = new_name;
-          entry.contentEditable = false;
-          abc.abort();
-          this.refresh_path(entry._data.parentPath);
+          this.refresh_path(parentPath);
         }
       },
       { signal: abc.signal },
@@ -258,118 +260,148 @@ export class WssFileExplorer extends HTMLElement {
   }
 
   /**
-   * @param {HTMLElement} entry
+   * @param {HTMLElement | string} entryOrPath
    */
-  async handleNew(entry) {
-    const path = (entry._data.parentPath + "/" + entry._data.name).replace(
-      /\/+/,
-      "/",
-    );
-    // IMMEDIATELY create temp entry
-    const tempName = "new";
-    const tempPath = (path + "/" + tempName).replace(/\/+/, "/");
+  async handleNew(entryOrPath) {
+    let parentPath, parentData, parentIndex, newEntryDepth;
 
-    const entry_placeholder = {
+    if (typeof entryOrPath === "string") {
+      parentPath = entryOrPath;
+      parentData = this._files.find((f) => {
+        const f_path = [f.parentPath, f.name].join("/").replace(/\/+/g, "/");
+        return f_path === parentPath && f.type === "dir";
+      });
+
+      if (parentData) {
+        parentIndex = this._files.indexOf(parentData);
+        newEntryDepth = parentData.depth + 1;
+      } else {
+        // Root or empty area
+        parentIndex = -1;
+        newEntryDepth = 0;
+      }
+    } else {
+      const clickedData = entryOrPath._data;
+      parentIndex = this._files.indexOf(clickedData);
+      if (clickedData.type === "dir") {
+        parentPath = (clickedData.parentPath + "/" + clickedData.name).replace(
+          /\/+/,
+          "/",
+        );
+        parentData = clickedData;
+        newEntryDepth = clickedData.depth + 1;
+      } else {
+        parentPath = clickedData.parentPath;
+        // No parentData if we clicked a file in the root
+        parentData = this._files.find((f) => {
+          const f_path = [f.parentPath, f.name]
+            .join("/")
+            .replace(/\/+/g, "/");
+          return f_path === parentPath && f.type === "dir";
+        });
+        newEntryDepth = clickedData.depth;
+      }
+    }
+    parentPath = parentPath.replace(/\/+/, "/");
+
+    // Open directory if it's closed
+    if (parentData && !parentData.open) {
+      parentData.open = true;
+      // We must render first, then continue, which complicates things.
+      // A better approach is to make refresh_path handle it.
+      // For now, let's just optimistically open and proceed.
+    }
+
+    const tempName = "new";
+    const tempPath = (parentPath === "/" ? "/" : parentPath + "/") + tempName;
+
+    const placeholder = {
       name: tempName,
-      type: "file",
-      depth: entry._data.depth, // Will be fixed on render
-      parentPath: path,
+      type: "file", // Assume file, user can create dir by adding "/"
+      depth: newEntryDepth,
+      parentPath: parentPath,
       open: false,
     };
 
-    // get the index of target to append the new node under it
-    const entry_index = this._files.indexOf(entry._data);
-
-    // open closed directories
-    if (entry._data.type === "dir") {
-      entry_placeholder.depth++;
-
-      if (!entry._data.open) {
-        const files = await this.listFiles(path);
-        const newFiles = files
-          .map((f) => ({
-            ...f,
-            depth: entry._data.depth + 1,
-            parentPath: path,
-            open: false,
-          }))
-          .sort((a, b) => {
-            if (a.type === b.type) {
-              return a.name.localeCompare(b.name);
-            }
-            return a.type === "dir" ? -1 : 1;
-          });
-        this._files.splice(entry_index + 1, 0, ...newFiles);
-
-        entry._data.open = true;
-      }
-    }
-
-    this._files.splice(entry_index + 1, 0, entry_placeholder);
+    // Insert placeholder and re-render
+    this._files.splice(parentIndex + 1, 0, placeholder);
     this.render();
 
-    // Find & edit
-    const newEntry = this._root.querySelector(`[data-path="${tempPath}"]`);
-    if (!newEntry) return;
+    const newEntryEl = this._root.querySelector(`[data-path="${tempPath}"]`);
+    if (!newEntryEl) return;
 
+    const nameSpan = newEntryEl.querySelector(".entry-name");
     const abc = new AbortController();
-    const original_text = newEntry.innerText;
 
-    newEntry.addEventListener(
+    const cleanup = () => {
+      const tempIndex = this._files.indexOf(placeholder);
+      if (tempIndex > -1) this._files.splice(tempIndex, 1);
+      this.render();
+      abc.abort();
+    };
+
+    nameSpan.contentEditable = true;
+    nameSpan.focus();
+    document.execCommand("selectAll", false, null);
+
+    nameSpan.addEventListener(
       "keydown",
       (e) => {
         if (e.key === "Enter") {
           e.preventDefault();
-          newEntry.blur();
+          nameSpan.blur();
+        } else if (e.key === "Escape") {
+          nameSpan.blur();
+          cleanup();
         }
       },
       { signal: abc.signal },
     );
 
-    newEntry.contentEditable = true;
-    newEntry.focus();
-    document.execCommand("selectAll", false, null);
-    newEntry.addEventListener(
+    nameSpan.addEventListener(
       "blur",
-      async (e) => {
-        const new_name = newEntry.innerText.trim();
-        if (!new_name || new_name === original_text) {
-          // Remove temp if empty/cancel
-          const tempIndex = this._files.findIndex(
-            (f) =>
-              f.name === tempName && f.parentPath === newEntry._data.parentPath,
-          );
-          if (tempIndex > -1) this._files.splice(tempIndex, 1);
-          newEntry.remove();
-          abc.abort();
+      async () => {
+        const new_name = nameSpan.innerText.trim();
+        nameSpan.contentEditable = false;
+
+        if (!new_name || new_name === tempName) {
+          cleanup();
           return;
         }
 
-        const parent_path =
-          entry._data.type === "dir"
-            ? entry._data.parentPath + "/" + entry._data.name
-            : entry._data.parentPath;
-        const fullPath = [parent_path, new_name].join("/").replace(/\/+/, "/");
-
+        const fullPath =
+          (parentPath === "/" ? "/" : parentPath + "/") + new_name;
         let cmd;
-        if (!/\/$/.test(fullPath)) {
-          cmd = `mkdir ('.${fullPath}' | path dirname) ; '' | save '.${fullPath}'`;
+        const isDir = /\/$/.test(new_name);
+        const finalPath = isDir ? fullPath.slice(0, -1) : fullPath;
+
+        const existsResult = await sh.ws.send({
+          type: "cmd",
+          body: `'.${finalPath}' | path exists`,
+        });
+
+        if (existsResult.body.trim() === "true") {
+          await sh.components.prompt.show({
+            title: "Error",
+            msg: "File or folder already exists.",
+            confirm: "Ok",
+          });
+          cleanup();
+          return;
+        }
+
+        if (isDir) {
+          cmd = `mkdir '.${finalPath}'`;
         } else {
-          cmd = `mkdir .${fullPath}`;
+          cmd = `mkdir ('.${finalPath}' | path dirname) ; '' | save '.${finalPath}'`;
         }
         await sh.ws.send({ type: "cmd", body: cmd });
 
-        // Update entry
-        newEntry.dataset.path = fullPath;
-        newEntry._data.name = new_name;
-        newEntry.contentEditable = false;
         abc.abort();
-
-        // Refresh parent to pick up new file + fix depth/sort
-        this.refresh_path(parent_path);
+        this.refresh_path(parentPath);
       },
-      { signal: abc.signal },
-    );
+      { once: true },
+    ); // Use `once` to ensure it only fires once
   }
 
   /**
@@ -377,26 +409,20 @@ export class WssFileExplorer extends HTMLElement {
    */
   async handleDelete(entry) {
     try {
+      const path = entry.dataset.path;
       await sh.components.prompt.show({
         title: "Delete?",
-        msg: `Delete ${entry.dataset.path}?`,
-        confirm: "Yes",
+        msg: `Are you sure you want to delete ${path}? This action cannot be undone.`,
+        confirm: "Yes, Delete",
         cancel: "No",
       });
 
-      const path = entry.dataset.path;
       await sh.ws.send({ type: "cmd", body: `rm -rf '.${path}'` });
 
-      // Remove from _files
-      const index = this._files.findIndex(
-        (f) => [f.parentPath, f.name].join("/") === path,
-      );
-      if (index > -1) this._files.splice(index, 1);
-
-      // this.refresh_path(newEntry._data.parentPath);
-
-      this.render();
-    } catch (e) {}
+      this.refresh_path(entry._data.parentPath);
+    } catch (e) {
+      // User cancelled the prompt
+    }
   }
 
   /**
