@@ -102,7 +102,7 @@ document.addEventListener("DOMContentLoaded", () => {
   );
   const mainLayoutContainer = document.querySelector(".main-layout-container"); // NEW
 
-  const MIN_FILE_EXPLORER_WIDTH = 40; // Collapsed width
+  const MIN_FILE_EXPLORER_WIDTH = 20; // Collapsed width
   const INITIAL_FILE_EXPLORER_WIDTH = 250; // Initial expanded width
   const MIN_EDITOR_TERMINAL_WIDTH = 200; // Minimum width for the editor/terminal area
 
@@ -311,7 +311,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!isPreviewResizing) return;
 
     const deltaX = e.clientX - lastXPreview;
-    const totalContentWidth = mainLayoutContainer.offsetWidth - fileExplorerContainer.offsetWidth - rightResizer.offsetWidth; // Total width available for editor + preview
+    const totalContentWidth =
+      mainLayoutContainer.offsetWidth -
+      fileExplorerContainer.offsetWidth -
+      rightResizer.offsetWidth; // Total width available for editor + preview
 
     let newPreviewWidthPx = previewInitialWidthPx - deltaX;
     let newEditorTerminalWidthPx = totalContentWidth - newPreviewWidthPx;
@@ -331,7 +334,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (newPreviewWidthPx < MIN_PREVIEW_WIDTH) {
       newPreviewWidthPx = MIN_PREVIEW_WIDTH;
     }
-    
+
     previewContainer.style.flexBasis = `${newPreviewWidthPx}px`;
     localStorage.setItem("previewPanelWidth", `${newPreviewWidthPx}px`);
   }
@@ -343,7 +346,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.body.style.cursor = "";
     document.body.style.userSelect = "";
     document.body.style.pointerEvents = "";
-    
+
     previewContainer.style.transition = "";
     editorTerminalContainer.style.transition = "";
   }
@@ -361,8 +364,11 @@ document.addEventListener("DOMContentLoaded", () => {
       if (parsedWidth < MIN_PREVIEW_WIDTH) {
         parsedWidth = MIN_PREVIEW_WIDTH;
       }
-      
-      const totalContentWidth = mainLayoutContainer.offsetWidth - fileExplorerContainer.offsetWidth - rightResizer.offsetWidth;
+
+      const totalContentWidth =
+        mainLayoutContainer.offsetWidth -
+        fileExplorerContainer.offsetWidth -
+        rightResizer.offsetWidth;
       if (totalContentWidth - parsedWidth < MIN_EDITOR_TERMINAL_WIDTH) {
         parsedWidth = totalContentWidth - MIN_EDITOR_TERMINAL_WIDTH;
       }
@@ -373,5 +379,5 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Re-apply layout with new preview panel width logic
   applyLayout();
-
 });
+
