@@ -9,7 +9,12 @@ import "/src/workspace/workspace.js";
 import "/src/components/mod.js";
 import { WssPreviewPanel } from "/src/preview/mod.js";
 
+// Global variables for preview panel state
+let isPreviewCollapsed = localStorage.getItem("isPreviewCollapsed") === "true";
+let previewPanelFlexBasisCache = localStorage.getItem("previewPanelWidth") || "150px"; // Initialize with saved width or default
+
 document.addEventListener("DOMContentLoaded", () => {
+
   const tabBar = document.querySelector(".tab-bar");
   const tabPanes = document.querySelectorAll(".tab-pane");
   const tabButtons = document.querySelectorAll(".tab-button");
@@ -279,12 +284,30 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const MIN_PREVIEW_WIDTH = 150; // Minimum width for the preview panel
 
+  const previewCollapseButton =
+    previewContainer.querySelector(".preview-collapse");
+
+  previewCollapseButton.addEventListener("click", () => {
+    isPreviewCollapsed = !isPreviewCollapsed;
+    localStorage.setItem("isPreviewCollapsed", isPreviewCollapsed);
+    previewContainer.style.transition = "flex-basis 0.2s ease-in-out";
+    if (isPreviewCollapsed) {
+      previewPanelFlexBasisCache = previewContainer.style.flexBasis;
+      previewContainer.style.flexBasis = "";
+      previewContainer.classList.add("collapsed");
+    } else {
+      previewContainer.style.flexBasis = previewPanelFlexBasisCache;
+      previewContainer.classList.remove("collapsed");
+    }
+  });
+
   let isPreviewResizing = false;
   let lastXPreview;
   let previewInitialWidthPx;
   let editorTerminalInitialWidthPxPreview; // Refers to the editor-terminal-container
 
   function startResizePreviewPanel(e) {
+    previewContainer.style.transition = "none";
     isPreviewResizing = true;
     lastXPreview = e.clientX;
     previewInitialWidthPx = previewContainer.offsetWidth;
@@ -337,6 +360,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     previewContainer.style.flexBasis = `${newPreviewWidthPx}px`;
     localStorage.setItem("previewPanelWidth", `${newPreviewWidthPx}px`);
+    previewPanelFlexBasisCache = `${newPreviewWidthPx}px`;
   }
 
   function stopResizePreviewPanel() {
@@ -375,9 +399,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
       previewContainer.style.flexBasis = `${parsedWidth}px`;
     }
+
+    // Handle preview panel collapsed state
+    if (isPreviewCollapsed) {
+      previewContainer.style.flexBasis = "";
+      previewContainer.classList.add("collapsed");
+    } else {
+      previewContainer.classList.remove("collapsed");
+      previewContainer.style.flexBasis = previewPanelFlexBasisCache;
+    }
   };
 
   // Re-apply layout with new preview panel width logic
   applyLayout();
 });
-

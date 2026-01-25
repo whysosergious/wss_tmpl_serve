@@ -62,7 +62,9 @@ export class WssPreviewPanel extends HTMLElement {
     this.dimensionsDisplay = this.shadowRoot.querySelector(
       "#preview-dimensions",
     );
-    this.bottomResizer = this.shadowRoot.querySelector(".iframe-resizer-bottom");
+    this.bottomResizer = this.shadowRoot.querySelector(
+      ".iframe-resizer-bottom",
+    );
 
     this.resizeObserver = new ResizeObserver(() => this.updateDimensions());
 

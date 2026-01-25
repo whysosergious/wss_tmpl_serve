@@ -1,6 +1,7 @@
 <!doctype html>
 <html>
   <head>
+    <meta charset="UTF-8" />
     <base href="/web/" />
     <title>shelly</title>
     <link rel="stylesheet" href="./main.css" />
@@ -17,7 +18,7 @@
     <div class="main-layout-container">
       <div class="file-explorer-container collapsed">
         <div class="file-explorer-header">
-          <button id="toggle-file-explorer">F</button>
+          <button id="toggle-file-explorer">≡</button>
         </div>
         <div class="file-explorer-content">
           <wss-file-explorer root="/"></wss-file-explorer>
@@ -45,6 +46,7 @@
       </div>
       <div class="resizer preview-resizer" id="preview-resizer"></div>
       <div class="preview-container">
+        <button class="preview-collapse">≣</button>
         <wss-preview-panel></wss-preview-panel>
       </div>
     </div>
