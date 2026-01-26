@@ -233,8 +233,29 @@ export class WssPreviewPanel extends HTMLElement {
         try {
           const unpackedMessages = decodeMulti(new Uint8Array(arrayBuffer));
           for (const unpacked of unpackedMessages) {
-            if (unpacked && (unpacked.Reload || unpacked.CssUpdate)) {
-              this.iframe.contentWindow.postMessage(unpacked, "*");
+            // Check if the unpacked message has the expected FrontendWatcherMessage structure
+            if (
+              unpacked &&
+              typeof unpacked.message_type === "string" &&
+              typeof unpacked.body === "string"
+            ) {
+              if (
+                unpacked.message_type === "reload" ||
+                unpacked.message_type === "css_update"
+              ) {
+                console.log(
+                  "[Preview] Forwarding WatcherEvent to iframe:",
+                  unpacked,
+                );
+                this.iframe.contentWindow.postMessage(unpacked, "*");
+              }
+            } else {
+              // This else block is for debug purposes, to see other unhandled messages
+              // It could also be a ServerMessage or ClientMessage not meant for Preview
+              console.log(
+                "[Preview] Received unhandled unpacked message (not WatcherEvent):",
+                unpacked,
+              );
             }
           }
         } catch (e) {

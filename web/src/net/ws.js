@@ -54,6 +54,11 @@ const ws = {
               `BROADCAST [from:${unpacked.id}, msg_id:${unpacked.msg_id}]: ${unpacked.body}`,
               "cyan",
             );
+          } else if (unpacked.type === "reload") {
+            terminalInstance.println(
+              `NOTIFY: reload - ${unpacked.body}`,
+              "cyan",
+            );
           } else {
             console.warn(
               "Received MessagePack object with unhandled type or missing body:",

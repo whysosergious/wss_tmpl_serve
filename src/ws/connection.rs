@@ -14,7 +14,8 @@ use std::sync::{
 use tokio::sync::mpsc;
 
 use crate::cmd::nu::execute_command;
-use crate::watcher::WatcherMessage; // Import WatcherMessage from the watcher module
+// The WatcherMessage enum is internal to the watcher module, we now deal with WatcherEvent
+// use crate::watcher::WatcherMessage; // This import is no longer needed directly
 
 #[derive(Deserialize)]
 struct ClientMessage {
@@ -23,24 +24,32 @@ struct ClientMessage {
     msg_id: String,
 }
 
-#[derive(Serialize, Clone)]
-#[serde(untagged)] // Allows for flexible deserialization without a top-level tag
-enum WsMessage {
-    Server(ServerMessage),
-    Watcher(WatcherEvent),
+#[derive(Serialize, Clone, Debug)]
+pub struct FrontendWatcherMessage {
+    #[serde(rename = "type")] // Ensures the field is named "type" in JSON
+    pub message_type: String,
+    pub body: String, // Changed from 'path' to 'body'
 }
 
+#[derive(Serialize, Clone)]
+#[serde(untagged)] // Keep untagged for now as ServerMessage and FrontendWatcherMessage are top-level objects
+enum WsMessage {
+    Server(ServerMessage),
+    FrontendWatcher(FrontendWatcherMessage),
+}
+
+// WatcherEvent still defined here, not in watcher.rs
 #[derive(Serialize, Clone, Debug)]
 pub enum WatcherEvent {
     Reload { path: String },
     CssUpdate { path: String },
 }
 
-impl From<WatcherMessage> for WatcherEvent {
-    fn from(msg: WatcherMessage) -> Self {
-        match msg {
-            WatcherMessage::Reload(path) => WatcherEvent::Reload { path },
-            WatcherMessage::CssUpdate(path) => WatcherEvent::CssUpdate { path },
+impl From<WatcherEvent> for FrontendWatcherMessage {
+    fn from(event: WatcherEvent) -> Self {
+        match event {
+            WatcherEvent::Reload { path } => FrontendWatcherMessage { message_type: "reload".to_string(), body: path }, // Map path to body
+            WatcherEvent::CssUpdate { path } => FrontendWatcherMessage { message_type: "css_update".to_string(), body: path }, // Map path to body
         }
     }
 }
@@ -68,9 +77,15 @@ pub fn start_watcher_event_broadcast(
         println!("[Broadcast] Watcher event broadcast task started.");
         while let Some(event) = rx.recv().await {
             println!("[Broadcast] Received WatcherEvent: {:?}", event);
+        let frontend_msg: FrontendWatcherMessage = event.into(); // Convert here
+        println!("[Broadcast] Converted to FrontendWatcherMessage: {:?}", frontend_msg); // Added debug
             let mut buf = Vec::new();
-            if let Err(e) = WsMessage::Watcher(event.clone()).serialize(&mut rmp_serde::Serializer::new(&mut buf)) {
-                error!("Failed to serialize watcher event: {}", e);
+            let mut msg_map = HashMap::new();
+            msg_map.insert("type".to_string(), frontend_msg.message_type);
+            msg_map.insert("body".to_string(), frontend_msg.body);
+
+            if let Err(e) = msg_map.serialize(&mut rmp_serde::Serializer::new(&mut buf)) {
+                error!("Failed to serialize watcher event HashMap: {}", e);
                 continue;
             }
             let bytes = Bytes::from(buf);
