@@ -30,7 +30,7 @@ enum WsMessage {
     Watcher(WatcherEvent),
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone, Debug)]
 pub enum WatcherEvent {
     Reload { path: String },
     CssUpdate { path: String },
@@ -65,7 +65,9 @@ pub fn start_watcher_event_broadcast(
     clients: web::Data<Clients>,
 ) {
     actix_web::rt::spawn(async move {
+        println!("[Broadcast] Watcher event broadcast task started.");
         while let Some(event) = rx.recv().await {
+            println!("[Broadcast] Received WatcherEvent: {:?}", event);
             let mut buf = Vec::new();
             if let Err(e) = WsMessage::Watcher(event.clone()).serialize(&mut rmp_serde::Serializer::new(&mut buf)) {
                 error!("Failed to serialize watcher event: {}", e);
@@ -74,12 +76,16 @@ pub fn start_watcher_event_broadcast(
             let bytes = Bytes::from(buf);
 
             let guard = clients.lock().unwrap();
-            for (_client_id, client) in guard.iter() {
+            println!("[Broadcast] Attempting to send event to {} clients.", guard.len());
+            for (client_id, client) in guard.iter() {
                 if let Err(e) = client.send(Message::Binary(bytes.clone())) {
-                    error!("Failed to send watcher event to client: {}", e);
+                    error!("Failed to send watcher event to client {}: {}", client_id, e);
+                } else {
+                    println!("[Broadcast] Sent event to client {}", client_id);
                 }
             }
         }
+        println!("[Broadcast] Watcher event broadcast task finished.");
     });
 }
 

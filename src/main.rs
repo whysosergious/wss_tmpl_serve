@@ -32,7 +32,18 @@ async fn main() -> std::io::Result<()> {
     let port = env::var("PORT").unwrap_or_else(|_| "8080".to_string());
     let addr = format!("{}:{}", host, port);
 
-    let project_path = "./project".to_string(); // The directory to watch
+    let mut project_path = "./project".to_string(); // The directory to watch
+    let canonical_project_path = match std::fs::canonicalize(&project_path) {
+        Ok(path) => path.to_string_lossy().to_string(),
+        Err(e) => {
+            eprintln!("Failed to canonicalize project path {}: {}", project_path, e);
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "Failed to canonicalize project path",
+            ));
+        }
+    };
+    project_path = canonical_project_path.clone(); // Use the canonical path from now on
 
     let (watcher_tx, watcher_rx) = mpsc::unbounded_channel::<WatcherEvent>();
     // Wrap the receiver in an Arc<Mutex<Option<_>>> to allow it to be moved into the closure
