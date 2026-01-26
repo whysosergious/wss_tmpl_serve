@@ -3,10 +3,23 @@ import { gen_hash } from "../lib.js";
 import { encode, decodeMulti } from "/src/lib.js";
 import sh from "/src/sh.js";
 
+/**
+ * WebSocket service for communication with the backend.
+ * @namespace
+ */
 const ws = {
+  /** @type {WebSocket | null} */
   instance: null,
+  /** @type {PromiseWithResolvers<void>} */
   ready: Promise.withResolvers(),
+  /** @type {WssTerminal | null} */
   terminalInstance: null,
+
+  /**
+   * Establishes a WebSocket connection.
+   * @param {string} url - The WebSocket URL to connect to.
+   * @param {WssTerminal} terminalInstance - The terminal instance for logging.
+   */
   connect: function (url, terminalInstance) {
     this.terminalInstance = terminalInstance;
     this.ready = Promise.withResolvers();
@@ -59,6 +72,9 @@ const ws = {
               `NOTIFY: reload - ${unpacked.body}`,
               "cyan",
             );
+            document.dispatchEvent(
+              new CustomEvent("wss-reload", { detail: unpacked.body }),
+            );
           } else {
             console.warn(
               "Received MessagePack object with unhandled type or missing body:",
@@ -102,7 +118,15 @@ const ws = {
       this.instance.close();
     };
   },
+
+  /** @type {Map<string, PromiseWithResolvers<any>>} */
   pending: new Map(),
+
+  /**
+   * Sends a message over the WebSocket connection.
+   * @param {object} message - The message object to send.
+   * @returns {Promise<any>} A promise that resolves with the server's response.
+   */
   send: async function (message) {
     this.terminalInstance.println("> " + message.body);
 

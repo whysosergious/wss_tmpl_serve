@@ -1,10 +1,16 @@
 import sh from "/src/sh.js";
 
-class WssTerminal extends HTMLElement {
+/**
+ * A custom element for the terminal.
+ * @extends HTMLElement
+ */
+export class WssTerminal extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
+    /** @type {string[]} */
     this.history = [];
+    /** @type {number} */
     this.historyIndex = -1;
 
     this.shadowRoot.innerHTML = `
@@ -105,7 +111,9 @@ class WssTerminal extends HTMLElement {
             </div>
         `;
 
+    /** @type {HTMLDivElement} */
     this.outputElement = this.shadowRoot.querySelector(".output");
+    /** @type {HTMLTextAreaElement} */
     this.inputElement = this.shadowRoot.querySelector(".input-area");
 
     this.inputElement.addEventListener("keydown", this.handleInput.bind(this));
@@ -138,6 +146,11 @@ class WssTerminal extends HTMLElement {
     );
   }
 
+  /**
+   * Prints a line of text to the terminal.
+   * @param {string} text - The text to print.
+   * @param {string} [color] - The color of the text.
+   */
   println(text, color = "#00ff00") {
     const line = document.createElement("div");
     line.textContent = text;
@@ -147,6 +160,10 @@ class WssTerminal extends HTMLElement {
     // this.outputElement.scrollTop = this.outputElement.scrollHeight;
   }
 
+  /**
+   * Handles user input in the terminal.
+   * @param {KeyboardEvent} event - The keyboard event.
+   */
   handleInput(event) {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
@@ -188,11 +205,18 @@ class WssTerminal extends HTMLElement {
     }
   }
 
+  /**
+   * Resizes the input area to fit the content.
+   */
   resizeInput() {
     this.inputElement.style.height = "auto";
     this.inputElement.style.height = this.inputElement.scrollHeight + "px";
   }
 
+  /**
+   * Executes a command.
+   * @param {string} command - The command to execute.
+   */
   executeCommand(command) {
     switch (command.toLowerCase()) {
       case "help":

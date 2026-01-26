@@ -1,6 +1,10 @@
 import sh from "../sh.js";
 import { decodeMulti } from "../lib.js";
 
+/**
+ * A custom element for the preview panel, which displays a live preview of the project.
+ * @extends HTMLElement
+ */
 export class WssPreviewPanel extends HTMLElement {
   constructor() {
     super();
@@ -90,25 +94,34 @@ export class WssPreviewPanel extends HTMLElement {
       </div>
     `;
 
+    /** @type {HTMLDivElement} */
     this.iframeContainer = this.shadowRoot.querySelector(
       ".resizable-iframe-container",
     );
+    /** @type {HTMLIFrameElement} */
     this.iframe = this.shadowRoot.querySelector("#preview-iframe");
+    /** @type {HTMLSpanElement} */
     this.dimensionsDisplay = this.shadowRoot.querySelector(
       "#preview-dimensions",
     );
+    /** @type {HTMLDivElement} */
     this.bottomResizer = this.shadowRoot.querySelector(
       ".iframe-resizer-bottom",
     );
+    /** @type {HTMLButtonElement} */
     this.zoomOutButton = this.shadowRoot.querySelector("#zoom-out");
+    /** @type {HTMLButtonElement} */
     this.zoomInButton = this.shadowRoot.querySelector("#zoom-in");
+    /** @type {HTMLSpanElement} */
     this.zoomPercentageDisplay =
       this.shadowRoot.querySelector("#zoom-percentage");
 
     // Load zoom level from localStorage, or use default
     const savedZoomLevel = localStorage.getItem("previewZoomLevel");
+    /** @type {number} */
     this.zoomLevel = savedZoomLevel ? parseFloat(savedZoomLevel) : 0.5;
 
+    /** @type {ResizeObserver} */
     this.resizeObserver = new ResizeObserver(() => {
       this.updateDimensions();
     });
@@ -116,7 +129,7 @@ export class WssPreviewPanel extends HTMLElement {
     this.applySavedLayout();
     this.initIframeResizing();
     this.initZoomControls();
-    this.initWsListener();
+    this.initReloadListener();
   }
 
   connectedCallback() {
@@ -132,6 +145,9 @@ export class WssPreviewPanel extends HTMLElement {
     this.resizeObserver.disconnect();
   }
 
+  /**
+   * Applies the saved layout from local storage.
+   */
   applySavedLayout() {
     // Restore inner iframe height
     const savedIframeHeight = localStorage.getItem("previewIframeHeight");
@@ -140,6 +156,9 @@ export class WssPreviewPanel extends HTMLElement {
     }
   }
 
+  /**
+   * Initializes the iframe resizing functionality.
+   */
   initIframeResizing() {
     this.bottomResizer.addEventListener("mousedown", (e) => {
       e.preventDefault();
@@ -174,21 +193,33 @@ export class WssPreviewPanel extends HTMLElement {
     });
   }
 
+  /**
+   * Initializes the zoom controls.
+   */
   initZoomControls() {
     this.zoomOutButton.addEventListener("click", () => this.zoomOut());
     this.zoomInButton.addEventListener("click", () => this.zoomIn());
   }
 
+  /**
+   * Zooms in the preview iframe.
+   */
   zoomIn() {
     this.zoomLevel = Math.min(2.0, this.zoomLevel + 0.1); // Max zoom 200%
     this.applyZoom();
   }
 
+  /**
+   * Zooms out the preview iframe.
+   */
   zoomOut() {
     this.zoomLevel = Math.max(0.1, this.zoomLevel - 0.1); // Min zoom 10%
     this.applyZoom();
   }
 
+  /**
+   * Applies the current zoom level to the iframe.
+   */
   applyZoom() {
     this.iframe.style.transform = `scale(${this.zoomLevel})`;
     this.zoomPercentageDisplay.textContent = `${Math.round(
@@ -198,6 +229,9 @@ export class WssPreviewPanel extends HTMLElement {
     localStorage.setItem("previewZoomLevel", this.zoomLevel.toString()); // Save to localStorage
   }
 
+  /**
+   * Updates the dimensions display.
+   */
   updateDimensions() {
     // Get the actual width and height of the iframeContainer
     const containerWidth = this.iframeContainer.offsetWidth;
@@ -218,53 +252,13 @@ export class WssPreviewPanel extends HTMLElement {
     this.iframe.style.height = `${originalHeight}px`;
   }
 
-  initWsListener() {
-    sh.ws.ready.promise.then(() => {
-      sh.ws.instance.addEventListener("message", async (event) => {
-        let arrayBuffer;
-        if (event.data instanceof Blob) {
-          arrayBuffer = await event.data.arrayBuffer();
-        } else if (event.data instanceof ArrayBuffer) {
-          arrayBuffer = event.data;
-        } else {
-          return; // Ignore non-binary messages for this handler
-        }
-
-        try {
-          const unpackedMessages = decodeMulti(new Uint8Array(arrayBuffer));
-          for (const unpacked of unpackedMessages) {
-            // Check if the unpacked message has the expected FrontendWatcherMessage structure
-            if (
-              unpacked &&
-              typeof unpacked.message_type === "string" &&
-              typeof unpacked.body === "string"
-            ) {
-              if (
-                unpacked.message_type === "reload" ||
-                unpacked.message_type === "css_update"
-              ) {
-                console.log(
-                  "[Preview] Forwarding WatcherEvent to iframe:",
-                  unpacked,
-                );
-                this.iframe.contentWindow.postMessage(unpacked, "*");
-              }
-            } else {
-              // This else block is for debug purposes, to see other unhandled messages
-              // It could also be a ServerMessage or ClientMessage not meant for Preview
-              console.log(
-                "[Preview] Received unhandled unpacked message (not WatcherEvent):",
-                unpacked,
-              );
-            }
-          }
-        } catch (e) {
-          console.error(
-            "[Preview] MessagePack decode error for watcher event:",
-            e,
-          );
-        }
-      });
+  /**
+   * Initializes the listener for the wss-reload event.
+   */
+  initReloadListener() {
+    document.addEventListener("wss-reload", (event) => {
+      const currentSrc = this.iframe.src.split("?")[0];
+      this.iframe.src = `${currentSrc}?t=${new Date().getTime()}`;
     });
   }
 }
