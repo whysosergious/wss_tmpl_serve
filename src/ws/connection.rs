@@ -14,6 +14,7 @@ use std::sync::{
 use tokio::sync::mpsc;
 
 use crate::cmd::nu::execute_command;
+use crate::watcher::WatcherMessage; // Import WatcherMessage from the watcher module
 
 #[derive(Deserialize)]
 struct ClientMessage {
@@ -22,7 +23,29 @@ struct ClientMessage {
     msg_id: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
+#[serde(untagged)] // Allows for flexible deserialization without a top-level tag
+enum WsMessage {
+    Server(ServerMessage),
+    Watcher(WatcherEvent),
+}
+
+#[derive(Serialize, Clone)]
+pub enum WatcherEvent {
+    Reload { path: String },
+    CssUpdate { path: String },
+}
+
+impl From<WatcherMessage> for WatcherEvent {
+    fn from(msg: WatcherMessage) -> Self {
+        match msg {
+            WatcherMessage::Reload(path) => WatcherEvent::Reload { path },
+            WatcherMessage::CssUpdate(path) => WatcherEvent::CssUpdate { path },
+        }
+    }
+}
+
+#[derive(Serialize, Clone)]
 struct ServerMessage {
     r#type: String,
     body: String,
@@ -35,6 +58,31 @@ pub type Clients = Arc<Mutex<HashMap<usize, Tx>>>;
 
 /// Used to assign unique IDs to clients.
 static NEXT_CLIENT_ID: AtomicUsize = AtomicUsize::new(1);
+
+// This function will be spawned as a separate task to broadcast watcher events
+pub fn start_watcher_event_broadcast(
+    mut rx: mpsc::UnboundedReceiver<WatcherEvent>,
+    clients: web::Data<Clients>,
+) {
+    actix_web::rt::spawn(async move {
+        while let Some(event) = rx.recv().await {
+            let mut buf = Vec::new();
+            if let Err(e) = WsMessage::Watcher(event.clone()).serialize(&mut rmp_serde::Serializer::new(&mut buf)) {
+                error!("Failed to serialize watcher event: {}", e);
+                continue;
+            }
+            let bytes = Bytes::from(buf);
+
+            let guard = clients.lock().unwrap();
+            for (_client_id, client) in guard.iter() {
+                if let Err(e) = client.send(Message::Binary(bytes.clone())) {
+                    error!("Failed to send watcher event to client: {}", e);
+                }
+            }
+        }
+    });
+}
+
 
 async fn handle_binary_message(
     id: usize,
@@ -66,12 +114,12 @@ async fn handle_binary_message(
         }
         Ok(client_msg) if client_msg.r#type == "broadcast" => {
             let mut buf = Vec::new();
-            let broadcast = ServerMessage {
+            let broadcast = WsMessage::Server(ServerMessage {
                 r#type: "broadcast".into(),
                 body: client_msg.body.clone(),
                 id,
                 msg_id: client_msg.msg_id.clone(),
-            };
+            });
             broadcast.serialize(&mut Serializer::new(&mut buf))?;
             let bytes = Bytes::from(buf);
 

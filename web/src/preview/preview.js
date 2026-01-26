@@ -1,3 +1,6 @@
+import sh from "../sh.js";
+import { decodeMulti } from "../lib.js";
+
 export class WssPreviewPanel extends HTMLElement {
   constructor() {
     super();
@@ -102,18 +105,25 @@ export class WssPreviewPanel extends HTMLElement {
     this.zoomPercentageDisplay =
       this.shadowRoot.querySelector("#zoom-percentage");
 
-    this.zoomLevel = 0.5; // Default zoom level (50%)
+    // Load zoom level from localStorage, or use default
+    const savedZoomLevel = localStorage.getItem("previewZoomLevel");
+    this.zoomLevel = savedZoomLevel ? parseFloat(savedZoomLevel) : 0.5;
 
-    this.resizeObserver = new ResizeObserver(() => this.updateDimensions());
+    this.resizeObserver = new ResizeObserver(() => {
+      this.updateDimensions();
+    });
 
     this.applySavedLayout();
     this.initIframeResizing();
     this.initZoomControls();
+    this.initWsListener();
   }
 
   connectedCallback() {
     // Observe the custom element itself for size changes
     this.resizeObserver.observe(this);
+    // Also observe the iframeContainer directly
+    this.resizeObserver.observe(this.iframeContainer);
     this.updateDimensions(); // Initial update when connected
     this.applyZoom(); // Apply initial zoom level
   }
@@ -185,6 +195,7 @@ export class WssPreviewPanel extends HTMLElement {
       this.zoomLevel * 100,
     )}%`;
     this.updateDimensions(); // Update dimensions after zoom changes
+    localStorage.setItem("previewZoomLevel", this.zoomLevel.toString()); // Save to localStorage
   }
 
   updateDimensions() {
@@ -205,6 +216,35 @@ export class WssPreviewPanel extends HTMLElement {
     // This is important for scrolling and content layout within the iframe
     this.iframe.style.width = `${originalWidth}px`;
     this.iframe.style.height = `${originalHeight}px`;
+  }
+
+  initWsListener() {
+    sh.ws.ready.promise.then(() => {
+      sh.ws.instance.addEventListener("message", async (event) => {
+        let arrayBuffer;
+        if (event.data instanceof Blob) {
+          arrayBuffer = await event.data.arrayBuffer();
+        } else if (event.data instanceof ArrayBuffer) {
+          arrayBuffer = event.data;
+        } else {
+          return; // Ignore non-binary messages for this handler
+        }
+
+        try {
+          const unpackedMessages = decodeMulti(new Uint8Array(arrayBuffer));
+          for (const unpacked of unpackedMessages) {
+            if (unpacked && (unpacked.Reload || unpacked.CssUpdate)) {
+              this.iframe.contentWindow.postMessage(unpacked, "*");
+            }
+          }
+        } catch (e) {
+          console.error(
+            "[Preview] MessagePack decode error for watcher event:",
+            e,
+          );
+        }
+      });
+    });
   }
 }
 
