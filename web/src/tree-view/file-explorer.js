@@ -306,10 +306,15 @@ export class WssFileExplorer extends HTMLElement {
 
     // Open directory if it's closed
     if (parentData && !parentData.open) {
-      parentData.open = true;
       // We must render first, then continue, which complicates things.
       // A better approach is to make refresh_path handle it.
-      // For now, let's just optimistically open and proceed.
+      await this.refresh_path(parentPath);
+      // after refresh, we need to re-find the parent
+      parentData = this._files.find((f) => {
+        const f_path = [f.parentPath, f.name].join("/").replace(/\/+/g, "/");
+        return f_path === parentPath && f.type === "dir";
+      });
+      parentIndex = this._files.indexOf(parentData);
     }
 
     const tempName = "new";
@@ -658,35 +663,26 @@ export class WssFileExplorer extends HTMLElement {
     if (isDir) {
       node.addEventListener("click", async (e) => {
         e.stopPropagation();
+        const path = node.dataset.path;
+        const file = this._files.find(
+          (f) =>
+            [f.parentPath, f.name].join("/").replace(/\/+/g, "/") === path,
+        );
+
+        if (!file) return;
+
         file.open = !file.open;
+
         if (file.open) {
-          const index = this._files.findIndex(
-            (f) => f.name === file.name && f.parentPath === file.parentPath,
-          );
-          const files = await this.listFiles(node.dataset.path);
-          const newFiles = files
-            .map((f) => ({
-              ...f,
-              depth: file.depth + 1,
-              parentPath: node.dataset.path,
-              open: false,
-            }))
-            .sort((a, b) => {
-              if (a.type === b.type) {
-                return a.name.localeCompare(b.name);
-              }
-              return a.type === "dir" ? -1 : 1;
-            });
-          this._files.splice(index + 1, 0, ...newFiles);
+          // If the directory is now open, refresh its contents
+          await this.refresh_path(path);
         } else {
-          const index = this._files.findIndex(
-            (f) => f.name === file.name && f.parentPath === file.parentPath,
-          );
+          // If the directory is now closed, remove its children from the list
+          const index = this._files.indexOf(file);
           const children = this._getChildren(file, index);
           this._files.splice(index + 1, children.length);
+          this.render(); // Re-render to show the directory as closed
         }
-
-        this.render();
       });
     } else {
       // It's a file, add a click listener to open it
