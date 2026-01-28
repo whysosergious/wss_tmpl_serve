@@ -61,7 +61,13 @@ pub fn start_watcher(
                                     WatcherEvent::HmrCssUpdate {
                                         path: relative_path.clone(),
                                     }
-                                } else if relative_path.ends_with(".js") {
+                                } else if relative_path.ends_with(".js")
+                                    || relative_path.ends_with(".mjs")
+                                    || relative_path.ends_with(".jsx")
+                                    || relative_path.ends_with(".ts")
+                                    || relative_path.ends_with(".mts")
+                                    || relative_path.ends_with(".tsx")
+                                {
                                     WatcherEvent::HmrJsUpdate {
                                         path: relative_path.clone(),
                                     }
