@@ -1,0 +1,4 @@
+const s: string = 'typed string'
+
+console.log('log from n.js - ' + s)
+export const n = 'hello from n.. Date.now = ' + Date.now()

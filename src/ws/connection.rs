@@ -28,7 +28,7 @@ struct ClientMessage {
 #[serde(untagged)] // Keep untagged for now as ServerMessage and HmrMessage are top-level objects
 enum WsMessage {
     Server(ServerMessage),
-    HmrMessage(HmrMessage),
+    // HmrMessage(HmrMessage),
 }
 
 // Update enum to HMR types

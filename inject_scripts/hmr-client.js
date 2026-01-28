@@ -1,4 +1,4 @@
-import { decodeMulti } from "/web/src/lib.js";
+import { decodeMulti } from "https://cdn.jsdelivr.net/npm/@msgpack/msgpack@3.1.3/dist.esm/index.mjs";
 
 globalThis.__hmr_cache = new Map();
 
