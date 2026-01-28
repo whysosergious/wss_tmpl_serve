@@ -1,42 +1,62 @@
 use crate::ws::connection::WatcherEvent;
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
-use std::path::{Path, PathBuf}; // Import PathBuf
-use tokio::sync::mpsc; // Import WatcherEvent
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::{Duration, Instant};
+use tokio::sync::mpsc;
 
-#[derive(Debug)] // Add Debug for easier debugging
-pub enum WatcherMessage {
-    Reload(String),
-    CssUpdate(String),
+// Thread-safe debounce tracker
+lazy_static::lazy_static! {
+    static ref DEBOUNCE_MAP: Arc<Mutex<HashMap<String, Instant>>> =
+        Arc::new(Mutex::new(HashMap::new()));
 }
 
 pub fn start_watcher(
     project_path: String,
-    tx: mpsc::UnboundedSender<WatcherEvent>, // Change type to WatcherEvent
+    tx: mpsc::UnboundedSender<WatcherEvent>,
 ) -> Result<RecommendedWatcher, Box<dyn std::error::Error>> {
     println!("[Watcher] Starting watcher for path: {}", project_path);
 
-    // Select debouncer timeouts.
     let config = Config::default()
-        .with_poll_interval(std::time::Duration::from_secs(1))
+        .with_poll_interval(Duration::from_secs(1))
         .with_compare_contents(true);
 
-    let project_path_for_closure = project_path.clone(); // Clone for the closure
-    let project_path_obj = PathBuf::from(&project_path_for_closure); // Convert to PathBuf once
+    let project_path_for_closure = project_path.clone();
+    let project_path_obj = PathBuf::from(&project_path_for_closure);
+    let debounce_map = Arc::clone(&DEBOUNCE_MAP);
+    let tx_clone = tx.clone();
 
     let mut watcher = RecommendedWatcher::new(
         move |event: Result<notify::Event, notify::Error>| {
-            let tx = tx.clone();
+            let tx = tx_clone.clone();
             match event {
                 Ok(event) => {
-                    println!("[Watcher] Received event: {:?}", event);
-                    // Filter out events that are not related to file changes or are from ignored directories
+                    println!("[Watcher] Event: {:?}", event.kind);
+
                     if event.kind.is_modify() || event.kind.is_create() || event.kind.is_remove() {
                         for path in event.paths {
-                            println!("[Watcher] Processing path: {:?}", path); // Use {:?} for Path
-                                                                               // Check if the path is within the project directory
+                            println!("[Watcher] Path: {:?}", path);
+
                             if let Ok(relative_path_buf) = path.strip_prefix(&project_path_obj) {
-                                // Use strip_prefix
                                 let relative_path = relative_path_buf.to_string_lossy().to_string();
+
+                                // DEBOUNCE CHECK
+                                let debounce_key = format!("{:?}", path);
+                                let now = Instant::now();
+                                let debounce_duration = Duration::from_millis(250);
+
+                                {
+                                    let mut map_guard = debounce_map.lock().unwrap();
+                                    if let Some(&last_time) = map_guard.get(&debounce_key) {
+                                        if now.duration_since(last_time) < debounce_duration {
+                                            println!("[Watcher] ⏸️  Debounced: {}", relative_path);
+                                            continue;
+                                        }
+                                    }
+                                    map_guard.insert(debounce_key, now);
+                                } // Lock released here
 
                                 let watcher_event = if relative_path.ends_with(".css") {
                                     WatcherEvent::HmrCssUpdate {
@@ -45,7 +65,7 @@ pub fn start_watcher(
                                 } else if relative_path.ends_with(".js") {
                                     WatcherEvent::HmrJsUpdate {
                                         path: relative_path.clone(),
-                                    } // ← JS!
+                                    }
                                 } else if relative_path.ends_with(".html") {
                                     WatcherEvent::HmrReload {
                                         path: relative_path.clone(),
@@ -55,31 +75,20 @@ pub fn start_watcher(
                                     continue;
                                 };
 
-                                println!(
-                                    "[Watcher] Sending event to broadcast: {:?}",
-                                    watcher_event
-                                );
-
-                                let _ = tx.send(watcher_event); // Use send for unbounded sender
-                            } else {
-                                println!("[Watcher] Path not within project directory: {:?}", path);
+                                println!("[Watcher] 🚀 Sending: {:?}", watcher_event);
+                                let _ = tx.send(watcher_event);
                             }
                         }
-                    } else {
-                        println!("[Watcher] Ignoring event kind: {:?}", event.kind);
                     }
                 }
-                Err(e) => println!("[Watcher] Watch error: {:?}", e),
+                Err(e) => println!("[Watcher] Error: {:?}", e),
             }
         },
         config,
     )?;
 
-    // Add a path to be watched. All files and directories at that path and
-    // below will be monitored.
-    watcher.watch(Path::new(&project_path), RecursiveMode::Recursive)?; // project_path is still available here
-    println!("[Watcher] Successfully set up watch for: {}", project_path);
+    watcher.watch(Path::new(&project_path), RecursiveMode::Recursive)?;
+    println!("[Watcher] ✅ Watching: {}", project_path);
 
     Ok(watcher)
 }
-
