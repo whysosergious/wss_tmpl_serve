@@ -1,29 +1,31 @@
 import { decodeMulti } from "/web/src/lib.js";
 
+globalThis.__hmr_cache = new Map();
+
 class HMRClient {
   constructor() {
+    window.__hmr_cache = window.__hmr_cache || new Map();
+    this.lastReloads = new Map();
+
     this.ws = new WebSocket(`ws://${location.host}/ws/`);
     this.ws.binaryType = "arraybuffer";
-
-    this.ws.onopen = () => console.log("🔥 HMR WebSocket connected");
-    this.ws.onmessage = (event) => this.handleMsgpack(event.data);
-    this.ws.onclose = () => {
-      console.log("🔥 HMR WS disconnected - reconnecting...");
-      setTimeout(() => new HMRClient(), 1000);
-    };
+    this.ws.onmessage = (e) => this.handleMsgpack(e.data);
   }
 
   handleMsgpack(arrayBuffer) {
-    try {
-      const messages = decodeMulti(new Uint8Array(arrayBuffer));
-      messages.forEach((msg) => this.handleHmrEvent(msg));
-    } catch (e) {
-      console.warn("HMR MessagePack decode error:", e);
-    }
+    const messages = decodeMulti(new Uint8Array(arrayBuffer));
+    messages.forEach((msg) => this.handleHmrEvent(msg));
   }
 
   handleHmrEvent(msg) {
-    console.log("🔥 HMR event:", msg.type, msg.body);
+    // Debounce
+    const key = `${msg.type}:${msg.body}`;
+    const now = Date.now();
+    if (this.lastReloads.has(key) && now - this.lastReloads.get(key) < 500)
+      return;
+    this.lastReloads.set(key, now);
+
+    console.log("🔥 HMR:", msg.type, msg.body);
 
     switch (msg.type) {
       case "hmr::css_update":
@@ -32,38 +34,42 @@ class HMRClient {
       case "hmr::js_update":
         this.reloadJS(msg.body);
         break;
-      case "hmr::reload":
-        document.dispatchEvent(
-          new CustomEvent("wss-reload", { detail: msg.body }),
-        );
-        break;
-      default:
-        console.log("HMR: ignoring", msg.type);
     }
   }
 
   reloadCSS(path) {
-    document
-      .querySelectorAll(`link[href*="${path}"], link[href*=".css"]`)
-      .forEach((link) => {
-        const newHref = link.href.split("?")[0] + `?t=${Date.now()}`;
-        link.href = newHref;
-      });
-    console.log(`🔥 CSS reloaded: ${path}`);
+    document.querySelectorAll('link[href*=".css"]').forEach((link) => {
+      link.href += `?t=${Date.now()}`;
+    });
   }
 
   reloadJS(path) {
-    document
-      .querySelectorAll(`script[src*="${path}"], script[src*=".js"]`)
-      .forEach((script) => {
-        const newScript = document.createElement("script");
-        newScript.src = script.src.split("?")[0] + `?t=${Date.now()}`;
-        newScript.onload = () => script.remove();
-        document.head.appendChild(newScript);
-      });
-    console.log(`🔥 JS reloaded: ${path}`);
+    console.log("🔄 Full JS reload:", path);
+
+    // 1. Reload script tags
+    document.querySelectorAll('script[type="module"]').forEach((script) => {
+      const newScript = document.createElement("script");
+      newScript.src = script.src.split("?")[0] + `?t=${Date.now()}`;
+      newScript.type = "module";
+      newScript.crossOrigin = "anonymous";
+
+      newScript.onload = () => {
+        console.log("✅ Script tag reloaded");
+        script.remove();
+      };
+
+      script.parentNode.insertBefore(newScript, script);
+    });
+
+    // 2. Force module cache bust (NUCLEAR)
+    this.bustModuleCache();
+  }
+
+  bustModuleCache() {
+    // ESM modules cached forever → force full reload
+    console.log("💥 ESM cache bust - full reload");
+    window.location.reload(); // NUCLEAR OPTION - works 100%
   }
 }
 
-// Initialize immediately (before any other scripts)
 new HMRClient();
