@@ -305,7 +305,7 @@ wss-tabs {
 .resizable-iframe-container {
   position: relative;
   border: 1px solid #444;
-  width: 96%; /* 96% of parent */
+  width: calc(100% - 20px); /* 96% of parent */
   margin: 10px auto; /* Center horizontally, provide top margin */
   height: 50%; /* Default height, will be resized by JS */
   overflow: visible;
