@@ -1,3 +1,5 @@
+import sh from "../sh.js";
+
 export class WssConsole extends HTMLElement {
   constructor() {
     super();
@@ -27,6 +29,7 @@ export class WssConsole extends HTMLElement {
             text-align: right;
             user-select: none;
         }
+        .log-meta.anonymous { color: #999; font-style: italic; }
         .log-error { color: #f48771; }
         .log-warn { color: #f2c770; }
         .log-info { color: #75beff; }
@@ -53,19 +56,12 @@ export class WssConsole extends HTMLElement {
       info: console.info,
     };
 
-    // Bind this instance to the static interceptor
     WssConsole.instance = this;
 
     ["log", "error", "warn", "info"].forEach((method) => {
       console[method] = (...args) => {
-        // 1. Call original method (Browser console logic)
         this._originalMethods[method].apply(console, args);
-
-        // 2. Capture stack trace for Custom UI
-        // We create an error to capture the stack, then find the caller
         const stackLine = new Error().stack.split("\n")[2]?.trim() || "";
-
-        // 3. Update Custom UI
         if (WssConsole.instance) {
           WssConsole.instance._logToUI(method, stackLine, ...args);
         }
@@ -74,27 +70,21 @@ export class WssConsole extends HTMLElement {
 
     globalThis.wssConsoleWrapped = true;
 
-    // Wait for iframe to load
-    this._iframe = document.querySelector("iframe"); // or your selector
-    this._iframe.addEventListener("load", () => {
-      const iframeConsole = this._iframe.contentWindow.console;
+    sh.console = this;
 
-      // Override iframe's console methods to forward to parent
-      ["log", "error", "warn", "info"].forEach((method) => {
-        const original = iframeConsole[method];
-        iframeConsole[method] = (...args) => {
-          // Forward to parent's custom console with "iframe" prefix
-          this._logToUI(`${method}-iframe`, "[iframe]", ...args);
-
-          // Call original in iframe context
-          original.apply(iframeConsole, args);
-        };
-      });
+    globalThis.addEventListener("message", (e) => {
+      if (e.data.source === "iframe-console") {
+        this._logToUI(
+          `${e.data.type}-iframe`,
+          e.data.stack, // Source location from iframe
+          "[iframe]",
+          ...e.data.args,
+        );
+      }
     });
   }
 
   disconnectedCallback() {
-    // Restore original console methods when component is removed
     if (this._originalMethods) {
       Object.keys(this._originalMethods).forEach((method) => {
         console[method] = this._originalMethods[method];
@@ -108,7 +98,7 @@ export class WssConsole extends HTMLElement {
     const entry = document.createElement("div");
     entry.className = `log-entry log-${type}`;
 
-    // Content Wrapper
+    // Content Wrapper (unchanged - full object rendering restored)
     const content = document.createElement("div");
     content.className = "log-content";
 
@@ -116,30 +106,54 @@ export class WssConsole extends HTMLElement {
       if (index > 0) content.appendChild(document.createTextNode(" "));
 
       const span = document.createElement("span");
+
       if (typeof arg === "string") {
         span.className = "log-string";
         span.textContent = arg;
       } else if (typeof arg === "number") {
         span.className = "log-number";
         span.textContent = String(arg);
-      } else if (typeof arg === "object" && arg !== null) {
-        // Simplified object view for demo
-        span.textContent = JSON.stringify(arg);
+      } else if (typeof arg === "boolean") {
+        span.className = "log-boolean";
+        span.textContent = String(arg);
+      } else if (arg === null) {
+        span.className = "log-null";
+        span.textContent = "null";
+      } else if (arg === undefined) {
+        span.className = "log-undefined";
+        span.textContent = "undefined";
+      } else if (arg instanceof Error) {
+        span.textContent = arg.stack || arg.message;
+        span.style.whiteSpace = "pre-wrap";
+      } else if (typeof arg === "function") {
+        span.className = "log-function";
+        span.textContent = `ƒ ${arg.name}()`;
+      } else if (typeof arg === "object") {
+        const treeView = document.createElement("wss-tree-view");
+        treeView.data = arg;
+        span.appendChild(treeView);
       } else {
         span.textContent = String(arg);
       }
+
       content.appendChild(span);
     });
 
     entry.appendChild(content);
 
-    // Add Stack Trace Info (Optional: parses "at function (file:line:col)")
-    // Extracts just the filename:line for brevity
-    const match = stackLine.match(/([^\/]+):(\d+):(\d+)\)?$/);
+    // FIXED: Include anonymous but style differently
+    const match = stackLine.match(/([^\\/]+):(\d+):(\d+)\)?$/);
     if (match) {
       const meta = document.createElement("div");
-      meta.className = "log-meta";
-      meta.textContent = `${match[1]}:${match[2]}:${match[3]}`; // "file:line:col"
+      meta.className =
+        "log-meta" + (stackLine.includes("<anonymous>") ? " anonymous" : "");
+
+      meta.textContent = match[1].includes("<anonymous>")
+        ? `<anonymous>:${match[2]}:${match[3]}`
+        : `${match[1]}:${match[2]}:${match[3]}`;
+      // meta.textContent = stackLine.includes("<anonymous>")
+      //   ? `<anonymous>:${match[2]}:${match[3]}`
+      //   : `${match[1]}:${match[2]}:${match[3]}`;
       entry.appendChild(meta);
     }
 

@@ -89,7 +89,7 @@ export class WssPreviewPanel extends HTMLElement {
         <span id="preview-dimensions"></span>
       </div>
       <div class="resizable-iframe-container">
-        <iframe src="/project/index.html" id="preview-iframe"></iframe>
+        <iframe src="/project/" id="preview-iframe"></iframe>
         <div class="iframe-resizer-bottom"></div>
       </div>
     `;

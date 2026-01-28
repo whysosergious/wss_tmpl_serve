@@ -4,19 +4,19 @@ use std::env;
 use actix_files::Files;
 use actix_web::{middleware::Logger, web, App, HttpServer};
 use dotenv::dotenv;
+use once_cell::sync::OnceCell;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
-use once_cell::sync::OnceCell;
 
 // local modules
 mod cmd;
 mod http;
-mod ws;
 mod watcher;
+mod ws;
 
 use http::routes::{index, project};
-use ws::connection::{handler, start_watcher_event_broadcast, Clients, WatcherEvent};
 use watcher::start_watcher;
+use ws::connection::{handler, start_watcher_event_broadcast, Clients, WatcherEvent};
 
 // Use OnceCell to ensure the broadcast task is spawned only once
 static BROADCAST_TASK_SPAWNED: OnceCell<()> = OnceCell::new();
@@ -36,7 +36,10 @@ async fn main() -> std::io::Result<()> {
     let canonical_project_path = match std::fs::canonicalize(&project_path) {
         Ok(path) => path.to_string_lossy().to_string(),
         Err(e) => {
-            eprintln!("Failed to canonicalize project path {}: {}", project_path, e);
+            eprintln!(
+                "Failed to canonicalize project path {}: {}",
+                project_path, e
+            );
             return Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
                 "Failed to canonicalize project path",
@@ -53,7 +56,10 @@ async fn main() -> std::io::Result<()> {
     // Start the file watcher. It will send events to watcher_tx.
     let _watcher = match start_watcher(project_path.clone(), watcher_tx.clone()) {
         Ok(watcher) => {
-            println!("Started file watcher for project directory: {}", project_path);
+            println!(
+                "Started file watcher for project directory: {}",
+                project_path
+            );
             watcher
         }
         Err(e) => {
@@ -73,7 +79,8 @@ async fn main() -> std::io::Result<()> {
         let shared_watcher_rx_clone_for_factory = shared_watcher_rx.clone();
 
         // Ensure the broadcast task is spawned only once per process
-        BROADCAST_TASK_SPAWNED.get_or_init(move || { // move the clones into get_or_init
+        BROADCAST_TASK_SPAWNED.get_or_init(move || {
+            // move the clones into get_or_init
             let rx_option = shared_watcher_rx_clone_for_factory.lock().unwrap().take();
             if let Some(rx) = rx_option {
                 start_watcher_event_broadcast(rx, web::Data::new(clients_clone_for_factory));
@@ -87,7 +94,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .service(Files::new("/web", "./web"))
             .service(index)
-            .service(Files::new("/project", project_path.clone()))
+            // .service(Files::new("/project", project_path.clone()))
             .service(project)
             .wrap(Logger::default())
             .app_data(web::Data::new(clients.clone()))
