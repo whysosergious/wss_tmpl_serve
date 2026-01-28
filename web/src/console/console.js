@@ -17,16 +17,19 @@ export class WssConsole extends HTMLElement {
           padding: 2px 8px;
           border-bottom: 1px solid #252526;
           white-space: pre-wrap;
+          display: flex;
+          gap: 8px;
         }
-        .log-error {
-          color: #f48771;
+        .log-content { flex: 1; }
+        .log-meta { 
+            color: #666; 
+            font-size: 0.9em; 
+            text-align: right;
+            user-select: none;
         }
-        .log-warn {
-          color: #f2c770;
-        }
-        .log-info {
-          color: #75beff;
-        }
+        .log-error { color: #f48771; }
+        .log-warn { color: #f2c770; }
+        .log-info { color: #75beff; }
         .log-string { color: #ce9178; }
         .log-number { color: #b5cea8; }
         .log-boolean { color: #569cd6; }
@@ -39,70 +42,90 @@ export class WssConsole extends HTMLElement {
 
   connectedCallback() {
     this._logContainer = this.shadowRoot.getElementById("log-container");
-    this._originalConsole = {
-      log: console.log.bind(console),
-      error: console.error.bind(console),
-      warn: console.warn.bind(console),
-      info: console.info.bind(console),
+
+    // Prevent double-wrapping if component is re-attached
+    if (globalThis.wssConsoleWrapped) return;
+
+    this._originalMethods = {
+      log: console.log,
+      error: console.error,
+      warn: console.warn,
+      info: console.info,
     };
 
-    this._og = {
-      log: console.log,
-    };
-    console.log = (...args) => this._log("log", ...args);
-    console.error = (...args) => this._log("error", ...args);
-    console.warn = (...args) => this._log("warn", ...args);
-    console.info = (...args) => this._log("info", ...args);
+    // Bind this instance to the static interceptor
+    WssConsole.instance = this;
+
+    ["log", "error", "warn", "info"].forEach((method) => {
+      console[method] = (...args) => {
+        // 1. Call original method (Browser console logic)
+        this._originalMethods[method].apply(console, args);
+
+        // 2. Capture stack trace for Custom UI
+        // We create an error to capture the stack, then find the caller
+        const stackLine = new Error().stack.split("\n")[2]?.trim() || "";
+
+        // 3. Update Custom UI
+        if (WssConsole.instance) {
+          WssConsole.instance._logToUI(method, stackLine, ...args);
+        }
+      };
+    });
+
+    globalThis.wssConsoleWrapped = true;
   }
 
-  _log(type, ...args) {
-    // Call original console method
-    this._originalConsole[type](...args);
+  disconnectedCallback() {
+    // Restore original console methods when component is removed
+    if (this._originalMethods) {
+      Object.keys(this._originalMethods).forEach((method) => {
+        console[method] = this._originalMethods[method];
+      });
+      globalThis.wssConsoleWrapped = false;
+      WssConsole.instance = null;
+    }
+  }
 
-    // Add to our custom console
+  _logToUI(type, stackLine, ...args) {
     const entry = document.createElement("div");
     entry.className = `log-entry log-${type}`;
 
-    args.forEach((arg, index) => {
-      if (index > 0) { // Always add space between arguments
-        entry.appendChild(document.createTextNode(' '));
-      }
-      const span = document.createElement('span'); // Always create a span for each argument
+    // Content Wrapper
+    const content = document.createElement("div");
+    content.className = "log-content";
 
-      if (typeof arg === 'string') {
-        span.className = 'log-string';
+    args.forEach((arg, index) => {
+      if (index > 0) content.appendChild(document.createTextNode(" "));
+
+      const span = document.createElement("span");
+      if (typeof arg === "string") {
+        span.className = "log-string";
         span.textContent = arg;
-      } else if (typeof arg === 'number') {
-        span.className = 'log-number';
+      } else if (typeof arg === "number") {
+        span.className = "log-number";
         span.textContent = String(arg);
-      } else if (typeof arg === 'boolean') {
-        span.className = 'log-boolean';
-        span.textContent = String(arg);
-      } else if (arg === null) {
-        span.className = 'log-null';
-        span.textContent = 'null';
-      } else if (arg === undefined) {
-        span.className = 'log-undefined';
-        span.textContent = 'undefined';
-      } else if (arg instanceof Error) {
-        span.textContent = arg.stack || arg.message;
-        span.style.whiteSpace = 'pre-wrap';
-      } else if (typeof arg === 'function') {
-        span.className = 'log-function';
-        span.textContent = `ƒ ${arg.name}()`;
-      } else if (typeof arg === 'object') { // Handle objects
-        const treeView = document.createElement('wss-tree-view');
-        treeView.data = arg;
-        span.appendChild(treeView); // Append treeView inside the span
+      } else if (typeof arg === "object" && arg !== null) {
+        // Simplified object view for demo
+        span.textContent = JSON.stringify(arg);
       } else {
         span.textContent = String(arg);
       }
-
-      entry.appendChild(span); // Append the span to the log entry
+      content.appendChild(span);
     });
 
-    this._logContainer.appendChild(entry);
+    entry.appendChild(content);
 
+    // Add Stack Trace Info (Optional: parses "at function (file:line:col)")
+    // Extracts just the filename:line for brevity
+    const match = stackLine.match(/([^\/]+):(\d+):(\d+)\)?$/);
+    if (match) {
+        const meta = document.createElement("div");
+        meta.className = "log-meta";
+        meta.textContent = `${match[1]}:${match[2]}:${match[3]}`;  // "file:line:col"
+        entry.appendChild(meta);
+    }
+
+    this._logContainer.appendChild(entry);
     this.scrollTop = this.scrollHeight;
   }
 }
