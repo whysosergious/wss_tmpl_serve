@@ -51,7 +51,10 @@ async fn project(filename: actix_web::web::Path<String>) -> actix_web::Result<Ht
                         script_content.len(),
                         script_path.display()
                     );
-                    injected_scripts.push_str(&format!(r#"<script>{}</script>"#, script_content));
+                    injected_scripts.push_str(&format!(
+                        r#"<script type="module">{}</script>"#,
+                        script_content
+                    ));
                 }
             }
         } else {
@@ -64,7 +67,7 @@ async fn project(filename: actix_web::web::Path<String>) -> actix_web::Result<Ht
         println!("💉 Total injected: {} bytes", injected_scripts.len());
 
         let modified_content =
-            content.replace("</body>", &format!("{}{}</body>", injected_scripts, ""));
+            content.replace("</head>", &format!("{}{}</head>", injected_scripts, ""));
 
         println!("✅ Response sent with injection"); // DEBUG
         Ok(HttpResponse::Ok()

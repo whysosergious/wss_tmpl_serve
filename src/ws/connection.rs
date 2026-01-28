@@ -24,32 +24,43 @@ struct ClientMessage {
     msg_id: String,
 }
 
-#[derive(Serialize, Clone, Debug)]
-pub struct FrontendWatcherMessage {
-    #[serde(rename = "type")] // Ensures the field is named "type" in JSON
-    pub message_type: String,
-    pub body: String, // Changed from 'path' to 'body'
-}
-
 #[derive(Serialize, Clone)]
-#[serde(untagged)] // Keep untagged for now as ServerMessage and FrontendWatcherMessage are top-level objects
+#[serde(untagged)] // Keep untagged for now as ServerMessage and HmrMessage are top-level objects
 enum WsMessage {
     Server(ServerMessage),
-    FrontendWatcher(FrontendWatcherMessage),
+    HmrMessage(HmrMessage),
 }
 
-// WatcherEvent still defined here, not in watcher.rs
+// Update enum to HMR types
 #[derive(Serialize, Clone, Debug)]
 pub enum WatcherEvent {
-    Reload { path: String },
-    CssUpdate { path: String },
+    HmrReload { path: String },
+    HmrCssUpdate { path: String },
+    HmrJsUpdate { path: String },
 }
 
-impl From<WatcherEvent> for FrontendWatcherMessage {
+#[derive(Serialize, Clone, Debug)]
+pub struct HmrMessage {
+    #[serde(rename = "type")]
+    pub msg_type: String,
+    pub body: String,
+}
+
+impl From<WatcherEvent> for HmrMessage {
     fn from(event: WatcherEvent) -> Self {
         match event {
-            WatcherEvent::Reload { path } => FrontendWatcherMessage { message_type: "reload".to_string(), body: path }, // Map path to body
-            WatcherEvent::CssUpdate { path } => FrontendWatcherMessage { message_type: "css_update".to_string(), body: path }, // Map path to body
+            WatcherEvent::HmrReload { path } => HmrMessage {
+                msg_type: "hmr::reload".to_string(),
+                body: path, // relative OK for reload
+            },
+            WatcherEvent::HmrCssUpdate { path } => HmrMessage {
+                msg_type: "hmr::css_update".to_string(),
+                body: format!("/project/{}", path), // ← FULL PATH!
+            },
+            WatcherEvent::HmrJsUpdate { path } => HmrMessage {
+                msg_type: "hmr::js_update".to_string(),
+                body: format!("/project/{}", path), // ← FULL PATH!
+            },
         }
     }
 }
@@ -76,25 +87,34 @@ pub fn start_watcher_event_broadcast(
     actix_web::rt::spawn(async move {
         println!("[Broadcast] Watcher event broadcast task started.");
         while let Some(event) = rx.recv().await {
-            println!("[Broadcast] Received WatcherEvent: {:?}", event);
-        let frontend_msg: FrontendWatcherMessage = event.into(); // Convert here
-        println!("[Broadcast] Converted to FrontendWatcherMessage: {:?}", frontend_msg); // Added debug
+            println!("[Broadcast] Received: {:?}", event);
+
+            // SINGLE conversion - clone if needed
+            let frontend_msg: HmrMessage = event.clone().into(); // Clone + into
+
             let mut buf = Vec::new();
             let mut msg_map = HashMap::new();
-            msg_map.insert("type".to_string(), frontend_msg.message_type);
-            msg_map.insert("body".to_string(), frontend_msg.body);
+            msg_map.insert("type".to_string(), frontend_msg.msg_type.clone()); // Note: msg_type
+            msg_map.insert("body".to_string(), frontend_msg.body.clone());
 
-            if let Err(e) = msg_map.serialize(&mut rmp_serde::Serializer::new(&mut buf)) {
-                error!("Failed to serialize watcher event HashMap: {}", e);
+            if let Err(e) = msg_map.serialize(&mut Serializer::new(&mut buf)) {
+                error!("Serialize failed: {}", e);
                 continue;
             }
+
             let bytes = Bytes::from(buf);
 
             let guard = clients.lock().unwrap();
-            println!("[Broadcast] Attempting to send event to {} clients.", guard.len());
+            println!(
+                "[Broadcast] Attempting to send event to {} clients.",
+                guard.len()
+            );
             for (client_id, client) in guard.iter() {
                 if let Err(e) = client.send(Message::Binary(bytes.clone())) {
-                    error!("Failed to send watcher event to client {}: {}", client_id, e);
+                    error!(
+                        "Failed to send watcher event to client {}: {}",
+                        client_id, e
+                    );
                 } else {
                     println!("[Broadcast] Sent event to client {}", client_id);
                 }
@@ -103,7 +123,6 @@ pub fn start_watcher_event_broadcast(
         println!("[Broadcast] Watcher event broadcast task finished.");
     });
 }
-
 
 async fn handle_binary_message(
     id: usize,

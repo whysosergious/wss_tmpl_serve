@@ -67,7 +67,7 @@ const ws = {
               `BROADCAST [from:${unpacked.id}, msg_id:${unpacked.msg_id}]: ${unpacked.body}`,
               "cyan",
             );
-          } else if (unpacked.type === "reload") {
+          } else if (unpacked.type === "hmr::reload") {
             terminalInstance.println(
               `NOTIFY: reload - ${unpacked.body}`,
               "cyan",
@@ -75,13 +75,21 @@ const ws = {
             document.dispatchEvent(
               new CustomEvent("wss-reload", { detail: unpacked.body }),
             );
-          } else if (unpacked.type === "css_update") {
+          } else if (unpacked.type === "hmr::css_update") {
             terminalInstance.println(
               `NOTIFY: css_update - ${unpacked.body}`,
               "cyan",
             );
             document.dispatchEvent(
               new CustomEvent("wss-css-update", { detail: unpacked.body }),
+            );
+          } else if (unpacked.type === "hmr::js_update") {
+            terminalInstance.println(
+              `NOTIFY: js_update - ${unpacked.body}`,
+              "cyan",
+            );
+            document.dispatchEvent(
+              new CustomEvent("wss-js-update", { detail: unpacked.body }),
             );
           } else {
             console.warn(
@@ -139,7 +147,7 @@ const ws = {
     this.terminalInstance.println("> " + message.body);
     await this.ready.promise;
     message.msg_id = gen_hash();
-    
+
     const pending = Promise.withResolvers();
     this.pending.set(message.msg_id, pending);
 

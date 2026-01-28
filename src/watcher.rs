@@ -1,7 +1,7 @@
+use crate::ws::connection::WatcherEvent;
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::{Path, PathBuf}; // Import PathBuf
-use tokio::sync::mpsc;
-use crate::ws::connection::WatcherEvent; // Import WatcherEvent
+use tokio::sync::mpsc; // Import WatcherEvent
 
 #[derive(Debug)] // Add Debug for easier debugging
 pub enum WatcherMessage {
@@ -30,27 +30,36 @@ pub fn start_watcher(
                 Ok(event) => {
                     println!("[Watcher] Received event: {:?}", event);
                     // Filter out events that are not related to file changes or are from ignored directories
-                    if event.kind.is_modify()
-                        || event.kind.is_create()
-                        || event.kind.is_remove()
-                    {
+                    if event.kind.is_modify() || event.kind.is_create() || event.kind.is_remove() {
                         for path in event.paths {
                             println!("[Watcher] Processing path: {:?}", path); // Use {:?} for Path
-                            // Check if the path is within the project directory
-                            if let Ok(relative_path_buf) = path.strip_prefix(&project_path_obj) { // Use strip_prefix
+                                                                               // Check if the path is within the project directory
+                            if let Ok(relative_path_buf) = path.strip_prefix(&project_path_obj) {
+                                // Use strip_prefix
                                 let relative_path = relative_path_buf.to_string_lossy().to_string();
 
                                 let watcher_event = if relative_path.ends_with(".css") {
-                                    WatcherEvent::CssUpdate { path: relative_path.clone() }
-                                } else if relative_path.ends_with(".html")
-                                    || relative_path.ends_with(".js")
-                                {
-                                    WatcherEvent::Reload { path: relative_path.clone() }
+                                    WatcherEvent::HmrCssUpdate {
+                                        path: relative_path.clone(),
+                                    }
+                                } else if relative_path.ends_with(".js") {
+                                    WatcherEvent::HmrJsUpdate {
+                                        path: relative_path.clone(),
+                                    } // ← JS!
+                                } else if relative_path.ends_with(".html") {
+                                    WatcherEvent::HmrReload {
+                                        path: relative_path.clone(),
+                                    }
                                 } else {
-                                    println!("[Watcher] Ignoring non-relevant file type: {}", relative_path);
-                                    continue; // Ignore other file types
+                                    println!("[Watcher] Ignoring: {}", relative_path);
+                                    continue;
                                 };
-                                println!("[Watcher] Sending event to broadcast: {:?}", watcher_event);
+
+                                println!(
+                                    "[Watcher] Sending event to broadcast: {:?}",
+                                    watcher_event
+                                );
+
                                 let _ = tx.send(watcher_event); // Use send for unbounded sender
                             } else {
                                 println!("[Watcher] Path not within project directory: {:?}", path);
@@ -59,7 +68,7 @@ pub fn start_watcher(
                     } else {
                         println!("[Watcher] Ignoring event kind: {:?}", event.kind);
                     }
-                },
+                }
                 Err(e) => println!("[Watcher] Watch error: {:?}", e),
             }
         },
@@ -73,3 +82,4 @@ pub fn start_watcher(
 
     Ok(watcher)
 }
+
