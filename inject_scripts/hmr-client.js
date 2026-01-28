@@ -44,25 +44,25 @@ class HMRClient {
   }
 
   reloadJS(path) {
-    console.log("🔄 Full JS reload:", path);
+    console.log("🔄 HMR JS update:", path);
 
-    // 1. Reload script tags
-    document.querySelectorAll('script[type="module"]').forEach((script) => {
-      const newScript = document.createElement("script");
-      newScript.src = script.src.split("?")[0] + `?t=${Date.now()}`;
-      newScript.type = "module";
-      newScript.crossOrigin = "anonymous";
+    // Map relative file path to dev-server URL
+    const url = `${path}`; // adjust if your route is different
 
-      newScript.onload = () => {
-        console.log("✅ Script tag reloaded");
-        script.remove();
-      };
+    // Bust ESM cache by appending timestamp
+    const hmrUrl = url + (url.includes("?") ? "&" : "?") + "t=" + Date.now();
 
-      script.parentNode.insertBefore(newScript, script);
-    });
+    console.log("📦 HMR importing:", hmrUrl);
 
-    // 2. Force module cache bust (NUCLEAR)
-    this.bustModuleCache();
+    import(hmrUrl)
+      .then((mod) => {
+        console.log("✅ HMR module reloaded:", hmrUrl);
+        // Later: call accept handlers / patch state instead of doing nothing.
+      })
+      .catch((err) => {
+        console.warn("⚠️ HMR failed, doing full reload", err);
+        window.location.reload();
+      });
   }
 
   bustModuleCache() {
