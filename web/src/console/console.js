@@ -73,6 +73,24 @@ export class WssConsole extends HTMLElement {
     });
 
     globalThis.wssConsoleWrapped = true;
+
+    // Wait for iframe to load
+    this._iframe = document.querySelector("iframe"); // or your selector
+    this._iframe.addEventListener("load", () => {
+      const iframeConsole = this._iframe.contentWindow.console;
+
+      // Override iframe's console methods to forward to parent
+      ["log", "error", "warn", "info"].forEach((method) => {
+        const original = iframeConsole[method];
+        iframeConsole[method] = (...args) => {
+          // Forward to parent's custom console with "iframe" prefix
+          this._logToUI(`${method}-iframe`, "[iframe]", ...args);
+
+          // Call original in iframe context
+          original.apply(iframeConsole, args);
+        };
+      });
+    });
   }
 
   disconnectedCallback() {
@@ -119,10 +137,10 @@ export class WssConsole extends HTMLElement {
     // Extracts just the filename:line for brevity
     const match = stackLine.match(/([^\/]+):(\d+):(\d+)\)?$/);
     if (match) {
-        const meta = document.createElement("div");
-        meta.className = "log-meta";
-        meta.textContent = `${match[1]}:${match[2]}:${match[3]}`;  // "file:line:col"
-        entry.appendChild(meta);
+      const meta = document.createElement("div");
+      meta.className = "log-meta";
+      meta.textContent = `${match[1]}:${match[2]}:${match[3]}`; // "file:line:col"
+      entry.appendChild(meta);
     }
 
     this._logContainer.appendChild(entry);
