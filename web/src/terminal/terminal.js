@@ -50,6 +50,7 @@ export class WssTerminal extends HTMLElement {
                     overflow-y: auto;
                     white-space: pre-wrap;
                     word-wrap: break-word;
+                    word-break: break-all;
                     padding-right: 5px; /* Space for scrollbar */
                     box-sizing: border-box;
                     display: flex;
@@ -140,10 +141,7 @@ export class WssTerminal extends HTMLElement {
     const url = `${
       window.location.protocol === "https:" ? "wss:" : "ws:"
     }//${window.location.host}/ws/`;
-    sh.ws.connect(
-      url,
-      this,
-    );
+    sh.ws.connect(url, this);
   }
 
   /**
