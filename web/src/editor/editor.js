@@ -5,6 +5,9 @@ import {
   basicSetup,
   oneDark,
   autocompletion,
+  vim,
+  Vim,
+  getCM,
 } from "./pme/pme.mod.js";
 import { customKeymap } from "./keymaps.js";
 import { gen_hash } from "/src/lib.js"; // This might not be needed if id is from tab-id
@@ -32,6 +35,10 @@ sh.pme = {
   },
 };
 
+Vim.active = false;
+Vim.getCM = getCM;
+Vim.comp = new Compartment();
+
 export class WssEditor extends HTMLElement {
   id = null; // Will be set from 'tab-id' attribute
   name = "untitled";
@@ -46,6 +53,7 @@ export class WssEditor extends HTMLElement {
   /// compartments
   language = new Compartment();
   theme = new Compartment();
+  vim = Vim;
 
   connectedCallback() {
     this.id = this.getAttribute("tab-id") ?? gen_hash(); // Use tab-id if available, otherwise generate
@@ -59,6 +67,7 @@ export class WssEditor extends HTMLElement {
     this.state = EditorState.create({
       doc: this.initialContent || "", // Start with empty content or provided initialContent
       extensions: [
+        this.vim.comp.of([]),
         customKeymap,
         basicSetup,
         this.theme.of(oneDark),
@@ -100,27 +109,14 @@ export class WssEditor extends HTMLElement {
     this.removeEventListener("save-as", this.saveAs);
   }
 
+  encoder = new TextEncoder();
   _saveFile(force = false) {
     const content = this.getContent();
+    const data = btoa(String.fromCharCode(...this.encoder.encode(content)));
     const force_flag = force ? "-f" : "";
 
-    // Dynamically determine a Nushell raw string delimiter to safely embed content.
-    // This prevents issues if the content itself contains the default raw string delimiters.
-    let nushell_raw_string_prefix = "r#\'";
-    let nushell_raw_string_suffix = "\'#";
-    let hashes = 0;
-    while (
-      content.includes(
-        nushell_raw_string_prefix.slice(0, -1) +
-          nushell_raw_string_suffix.slice(1),
-      )
-    ) {
-      hashes++;
-      nushell_raw_string_prefix = `r#${"#".repeat(hashes)}"`;
-      nushell_raw_string_suffix = `"#${"#".repeat(hashes)}`;
-    }
+    const command = `'${data}' | base64 --decode | save ${force_flag} './${this.full_path}'`;
 
-    const command = `${nushell_raw_string_prefix}${content}${nushell_raw_string_suffix} | save ${force_flag} './${this.full_path}'`;
     sh.ws.send({
       type: "cmd",
       body: command,
@@ -281,6 +277,17 @@ export class WssEditor extends HTMLElement {
   setTheme(theme) {
     this.view.dispatch({
       effects: this.theme.reconfigure(theme),
+    });
+  }
+
+  /**
+   * Toggles vim motions
+   */
+  toggleVim() {
+    this.vim.active = !this.vim.active;
+
+    this.view.dispatch({
+      effects: this.vim.comp.reconfigure(this.vim.active ? vim() : []),
     });
   }
 }
