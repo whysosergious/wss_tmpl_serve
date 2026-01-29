@@ -208,10 +208,24 @@ wss-terminal {
   background: linear-gradient(180deg, #808080, #606060);
 }
 
-/* temp */
+/* codemirror */
 .cm-editor {
   height: 100%;
 }
+
+/* codemirror plugins */
+.cm-codelens {
+  font-size: 0.75rem;
+  opacity: 0.7;
+  padding: 2px 4px;
+  cursor: pointer;
+  user-select: none;
+}
+.cm-codelens:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
 
 /* Styles for wss-tabs to ensure it takes available space and allows internal scrolling */
 wss-tabs {
@@ -305,7 +319,7 @@ wss-tabs {
 .resizable-iframe-container {
   position: relative;
   border: 1px solid #444;
-  width: calc(100% - 20px); /* 96% of parent */
+  width: calc(100% - 14px); /* 96% of parent */
   margin: 10px auto; /* Center horizontally, provide top margin */
   height: 50%; /* Default height, will be resized by JS */
   overflow: visible;

@@ -53,7 +53,7 @@ export class WssPreviewPanel extends HTMLElement {
         .resizable-iframe-container {
           position: relative;
           border: 1px solid #444;
-          width: calc(100% - 20px); /* 96% of parent */
+          width: calc(100% - 14px); /* 96% of parent */
           margin: 10px auto; /* Center horizontally, provide top margin */
           height: 50%; /* Default height, will be resized by JS */
           overflow: hidden; /* Changed from visible to hidden to clip content outside the container */

@@ -14,6 +14,7 @@ import { gen_hash } from "/src/lib.js"; // This might not be needed if id is fro
 
 // custom plugins
 import { lang_by_ext } from "./plugins/language_switcher.js";
+import { code_lens } from "./plugins/codelens.js";
 
 // themes
 import { nord } from "./themes/nord.js";
@@ -73,6 +74,7 @@ export class WssEditor extends HTMLElement {
         this.theme.of(oneDark),
         this.language.of([]),
         autocompletion(),
+        // code_lens(),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             this.dispatchEvent(
