@@ -20,12 +20,28 @@ const FILE_ICON = `
   </svg>
 `;
 
+sh.fe ??= {};
+
 export class WssFileExplorer extends HTMLElement {
   /** @type {Array<{name: string, type: string, depth: number, parentPath: string, open: boolean}>} */
   _files = [];
   /** @type {HTMLElement} */
   _root;
 
+  /**
+   * @typedef {string[]} DirectoryPaths
+   * @typedef {{[key: string]: DirectoryPaths}} PageState
+   */
+
+  /**
+   * @type {MutationObserver | null}
+   * @private
+   */
+  _mutation_observer = null;
+
+  /**
+   * @private
+   */
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
@@ -89,6 +105,8 @@ export class WssFileExplorer extends HTMLElement {
   }
 
   async connectedCallback() {
+    sh.fe[this.id] = this;
+
     await sh.ws.ready.promise;
 
     // Capture currently open directory paths before re-initializing
@@ -114,8 +132,60 @@ export class WssFileExplorer extends HTMLElement {
     /** @type {WssContextMenuAPI} */
     this.contextMenu = document.querySelector("wss-context-menu");
     this.attachContextMenu();
+
+    // Setup observer with typed callback
+    /** @type {(mutations: MutationRecord[]) => void} */
+    const handler = () => {
+      const /** @type DirectoryPaths */ open_dirs =
+          this._getOpenDirectoryPaths();
+      const /** @type PageState */ state = { [this.id]: open_dirs };
+
+      try {
+        localStorage.setItem("page_state::fe", JSON.stringify(state));
+      } catch (e) {
+        console.warn("Failed to save state:", e);
+      }
+    };
+
+    this._mutation_observer = new MutationObserver(handler);
+    this._mutation_observer.observe(this._root, {
+      childList: true,
+      subtree: true,
+    });
+
+    this._load_state();
   }
 
+  /**
+   * @private
+   */
+  disconnectedCallback() {
+    this._mutation_observer?.disconnect();
+    this._mutation_observer = null;
+  }
+
+  /**
+   * @private
+   * @returns {Promise<void>}
+   */
+  async _load_state() {
+    try {
+      const raw = localStorage.getItem("page_state::fe");
+      if (!raw) return;
+
+      const /** @type PageState */ loaded_state = JSON.parse(raw);
+      const /** @type DirectoryPaths */ paths = loaded_state[this.id] ?? [];
+
+      if (!paths.length) return;
+
+      // Sort shortest first (stable)
+      for (const path of paths.sort((a, b) => a.length - b.length)) {
+        await this.refresh_path(path);
+      }
+    } catch (e) {
+      console.warn("Failed to load/restore state:", e);
+    }
+  }
   /** @private */
   attachContextMenu() {
     /** @type {WssContextMenuAPI} */
@@ -294,9 +364,7 @@ export class WssFileExplorer extends HTMLElement {
         parentPath = clickedData.parentPath;
         // No parentData if we clicked a file in the root
         parentData = this._files.find((f) => {
-          const f_path = [f.parentPath, f.name]
-            .join("/")
-            .replace(/\/+/g, "/");
+          const f_path = [f.parentPath, f.name].join("/").replace(/\/+/g, "/");
           return f_path === parentPath && f.type === "dir";
         });
         newEntryDepth = clickedData.depth;
@@ -665,8 +733,7 @@ export class WssFileExplorer extends HTMLElement {
         e.stopPropagation();
         const path = node.dataset.path;
         const file = this._files.find(
-          (f) =>
-            [f.parentPath, f.name].join("/").replace(/\/+/g, "/") === path,
+          (f) => [f.parentPath, f.name].join("/").replace(/\/+/g, "/") === path,
         );
 
         if (!file) return;
