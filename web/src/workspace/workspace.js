@@ -61,6 +61,7 @@ export class WssWorkspace extends HTMLElement {
 
   _setupTabs() {
     this.wssTabs = document.createElement("wss-tabs");
+    this.wssTabs.id = "tabs_ws1";
     this.tabsSlot.appendChild(this.wssTabs);
   }
 
