@@ -66,15 +66,16 @@ class HMRClient {
     this.lastReloads.set(key, now);
 
     console.log("🔥 HMR:", msg.type, msg.body);
-
-    switch (msg.type) {
-      case "hmr::css_update":
-        this.reloadCSS(msg.body);
-        break;
-      case "hmr::js_update":
-        this.reloadJS(msg.body);
-        break;
-    }
+    setTimeout(() => {
+      switch (msg.type) {
+        case "hmr::css_update":
+          this.reloadCSS(msg.body);
+          break;
+        case "hmr::js_update":
+          this.reloadJS(msg.body);
+          break;
+      }
+    }, 10);
   }
 
   reloadCSS(path) {

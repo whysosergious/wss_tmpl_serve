@@ -58,12 +58,7 @@ export class WssEditor extends HTMLElement {
 
   connectedCallback() {
     this.id = this.getAttribute("tab-id") ?? gen_hash(); // Use tab-id if available, otherwise generate
-    const { path, name, ext } = this.split_fullpath(
-      this.getAttribute("tab-path"),
-    );
-    this.path = path;
-    this.name = name;
-    this.ext = ext;
+    const { ext } = this.split_fullpath(this.getAttribute("tab-path"), true);
 
     this.state = EditorState.create({
       doc: this.initialContent || "", // Start with empty content or provided initialContent
@@ -102,6 +97,8 @@ export class WssEditor extends HTMLElement {
     lang_by_ext(ext).then((res) => {
       this.setLanguage([res]);
     });
+
+    sh.event.on("editor::update", this.update_handler);
   }
 
   disconnectedCallback() {
@@ -109,6 +106,38 @@ export class WssEditor extends HTMLElement {
     delete sh.editors[this.id];
     this.removeEventListener("save", this.save);
     this.removeEventListener("save-as", this.saveAs);
+    sh.event.off("editor::update", this.update_handler);
+  }
+
+  update_handler = (path) => {
+    if (this.full_path === "/undefined") return;
+
+    if (this.full_path === path) {
+      this.load(path);
+    }
+  };
+
+  async load(path) {
+    try {
+      const result = await sh.ws.send({
+        type: "cmd",
+        body: `open -r '.${path}'`,
+      });
+
+      this.view.dispatch({
+        changes: {
+          from: 0,
+          to: this.view.state.doc.length,
+          insert: result.body,
+        },
+      });
+
+      this.split_fullpath(path, true);
+
+      console.log(`✅ Reloaded ${path}`);
+    } catch (e) {
+      console.warn(`❌ Failed to reload ${path}:`, e);
+    }
   }
 
   encoder = new TextEncoder();
@@ -203,7 +232,7 @@ export class WssEditor extends HTMLElement {
    * split fullpath of a file into path, base and extension
    * @returns ({path:string, name:string, ext:string|undefined})
    */
-  split_fullpath(full_path) {
+  split_fullpath(full_path, set = false) {
     const last_slash = full_path.lastIndexOf("/");
     const path = last_slash === -1 ? "" : full_path.slice(0, last_slash + 1);
     const full_name = full_path.slice(last_slash + 1); // may be "foo", ".env", ".gitignore", ""
@@ -223,6 +252,12 @@ export class WssEditor extends HTMLElement {
     // Normal case: "c.es.js" → "c.es" + "js"
     const name = full_name.slice(0, last_dot);
     const ext = full_name.slice(last_dot + 1);
+
+    if (set) {
+      this.path = path;
+      this.name = name;
+      this.ext = ext;
+    }
 
     return { path, name, ext };
   }

@@ -57,8 +57,11 @@ const ws = {
           this.pending.delete(unpacked.msg_id);
 
           if (/^hmr|notify/.test(unpacked.type)) {
-            console.log(unpacked);
-            // sh.event.emit('fs::update', unpacked.body)
+            if (unpacked.action === "modify") {
+              sh.event.emit("editor::update", unpacked.body);
+            } else {
+              sh.event.emit("fe::update", unpacked.body);
+            }
           }
 
           if (unpacked && unpacked.type === "cmd_result") {
