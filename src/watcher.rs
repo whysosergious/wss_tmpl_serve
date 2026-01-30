@@ -6,6 +6,33 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 
+const IGNORED_DIRS: &[&str] = &["target/", ".git/"];
+
+const IGNORED_FILENAMES: &[&str] = &["~", ".swp", ".swo", ".tmp"];
+
+fn should_ignore_relative(relative_path: &str) -> bool {
+    // Ignore entire directories by relative prefix
+    for dir in IGNORED_DIRS {
+        if relative_path.starts_with(dir.trim_end_matches('/')) {
+            return true;
+        }
+    }
+
+    // Ignore filename patterns
+    if let Some(filename) = Path::new(relative_path)
+        .file_name()
+        .and_then(|n| n.to_str())
+    {
+        if IGNORED_FILENAMES.iter().any(|pat| filename.ends_with(pat)) {
+            return true;
+        }
+        if filename.parse::<u32>().is_ok() {
+            return true;
+        }
+    }
+
+    false
+}
 // Thread-safe debounce tracker
 lazy_static::lazy_static! {
     static ref DEBOUNCE_MAP: Arc<Mutex<HashMap<String, Instant>>> =
@@ -34,34 +61,18 @@ pub fn start_watcher(
                 Ok(event) => {
                     if event.kind.is_modify() || event.kind.is_create() || event.kind.is_remove() {
                         for path in event.paths {
-                            let full_target = project_path_obj.join("target");
-                            if path.starts_with(&full_target) {
-                                // println!("[Watcher] Ignoring target dir: {:?}", path);
-                                continue;
-                            }
-
-                            println!("[Watcher] Event: {:?}", event.kind);
                             println!("[Watcher] Path: {:?}", path);
 
                             if let Ok(relative_path_buf) = path.strip_prefix(&project_path_obj) {
                                 let relative_path = relative_path_buf.to_string_lossy().to_string();
 
-                                // Ignore editor temp/swap files by pattern
-                                let filename = Path::new(&relative_path)
-                                    .file_name()
-                                    .and_then(|n| n.to_str())
-                                    .unwrap_or("");
-
-                                if filename.ends_with('~')
-                                    || filename.ends_with(".swp")
-                                    || filename.ends_with(".swo")
-                                    || filename.ends_with(".tmp")
-                                    || filename.parse::<u32>().is_ok()
-                                // pure numbers like "4913"
-                                {
-                                    println!("[Watcher] Ignoring temp/swap: {}", relative_path);
+                                // Ignore FIRST, using relative path
+                                if should_ignore_relative(&relative_path) {
+                                    println!("[Watcher] Ignoring: {}", relative_path);
                                     continue;
                                 }
+                                println!("[Watcher] Event: {:?}", event.kind);
+                                println!("[Watcher] Path: {:?}", path);
 
                                 // DEBOUNCE CHECK
                                 let debounce_key = format!("{:?}", path);
