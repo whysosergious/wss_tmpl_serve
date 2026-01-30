@@ -109,8 +109,24 @@ pub fn start_watcher(
                                         path: relative_path.clone(),
                                     }
                                 } else {
+                                    let path_for_notify =
+                                        if path.metadata().map_or(false, |m| m.is_dir()) {
+                                            format!("{}/", relative_path)
+                                        } else {
+                                            relative_path
+                                        };
+                                    let action = if event.kind.is_create() {
+                                        "create".to_string()
+                                    } else if event.kind.is_modify() {
+                                        "modify".to_string()
+                                    } else if event.kind.is_remove() {
+                                        "remove".to_string()
+                                    } else {
+                                        "other".to_string()
+                                    };
                                     WatcherEvent::NotifyUpdate {
-                                        path: relative_path.clone(),
+                                        path: path_for_notify,
+                                        action: action,
                                     }
                                 };
 

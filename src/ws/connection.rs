@@ -37,13 +37,14 @@ pub enum WatcherEvent {
     HmrReload { path: String },
     HmrCssUpdate { path: String },
     HmrJsUpdate { path: String },
-    NotifyUpdate { path: String },
+    NotifyUpdate { path: String, action: String },
 }
 
 #[derive(Serialize, Clone, Debug)]
 pub struct HmrMessage {
     #[serde(rename = "type")]
     pub msg_type: String,
+    pub action: Option<String>,
     pub body: String,
 }
 
@@ -52,20 +53,31 @@ impl From<WatcherEvent> for HmrMessage {
         match event {
             WatcherEvent::HmrReload { path } => HmrMessage {
                 msg_type: "hmr::reload".to_string(),
-                body: format!("/{}", path), // ← FULL PATH!
+                action: Some("modify".to_string()),
+                body: format!("/{}", path),
             },
             WatcherEvent::HmrCssUpdate { path } => HmrMessage {
                 msg_type: "hmr::css_update".to_string(),
-                body: format!("/{}", path), // ← FULL PATH!
+                action: Some("modify".to_string()),
+                body: format!("/{}", path),
             },
             WatcherEvent::HmrJsUpdate { path } => HmrMessage {
                 msg_type: "hmr::js_update".to_string(),
-                body: format!("/{}", path), // ← FULL PATH!
+                action: Some("modify".to_string()),
+                body: format!("/{}", path),
             },
-            WatcherEvent::NotifyUpdate { path } => HmrMessage {
-                msg_type: "notify::update".to_string(),
-                body: format!("/{}", path), // ← FULL PATH!
-            },
+            WatcherEvent::NotifyUpdate { path, action } => {
+                // Detect action from Notify event.kind (pass it through WatcherEvent)
+                HmrMessage {
+                    msg_type: "notify::update".to_string(),
+                    action: Some(action), // or derive from event
+                    body: format!("/{}", path),
+                }
+            }
+            // WatcherEvent::NotifyUpdate { path } => HmrMessage {
+            //     msg_type: "notify::update".to_string(),
+            //     body: format!("/{}", path),
+            // },
         }
     }
 }
@@ -99,9 +111,11 @@ pub fn start_watcher_event_broadcast(
 
             let mut buf = Vec::new();
             let mut msg_map = HashMap::new();
-            msg_map.insert("type".to_string(), frontend_msg.msg_type.clone()); // Note: msg_type
+            msg_map.insert("type".to_string(), frontend_msg.msg_type.clone());
+            if let Some(action) = &frontend_msg.action {
+                msg_map.insert("action".to_string(), action.clone());
+            }
             msg_map.insert("body".to_string(), frontend_msg.body.clone());
-
             if let Err(e) = msg_map.serialize(&mut Serializer::new(&mut buf)) {
                 error!("Serialize failed: {}", e);
                 continue;

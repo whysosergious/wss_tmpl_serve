@@ -1,4 +1,5 @@
 import "/src/sh.js";
+import "/src/lib/mod.js";
 import "/src/net/mod.js";
 import "/src/terminal/mod.js";
 import "/src/editor/mod.js";
@@ -11,10 +12,10 @@ import { WssPreviewPanel } from "/src/preview/mod.js";
 
 // Global variables for preview panel state
 let isPreviewCollapsed = localStorage.getItem("isPreviewCollapsed") === "true";
-let previewPanelFlexBasisCache = localStorage.getItem("previewPanelWidth") || "150px"; // Initialize with saved width or default
+let previewPanelFlexBasisCache =
+  localStorage.getItem("previewPanelWidth") || "150px"; // Initialize with saved width or default
 
 document.addEventListener("DOMContentLoaded", () => {
-
   const tabBar = document.querySelector(".tab-bar");
   const tabPanes = document.querySelectorAll(".tab-pane");
   const tabButtons = document.querySelectorAll(".tab-button");

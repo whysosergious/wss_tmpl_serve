@@ -56,6 +56,11 @@ const ws = {
           this.pending.get(unpacked.msg_id)?.resolve(unpacked);
           this.pending.delete(unpacked.msg_id);
 
+          if (/^hmr|notify/.test(unpacked.type)) {
+            console.log(unpacked);
+            // sh.event.emit('fs::update', unpacked.body)
+          }
+
           if (unpacked && unpacked.type === "cmd_result") {
             terminalInstance.println(unpacked.body);
           } else if (
@@ -90,6 +95,11 @@ const ws = {
             );
             document.dispatchEvent(
               new CustomEvent("wss-js-update", { detail: unpacked.body }),
+            );
+          } else if (unpacked.type === "notify::update") {
+            terminalInstance.println(
+              `NOTIFY: update - ${unpacked.body}`,
+              "cyan",
             );
           } else {
             console.warn(
