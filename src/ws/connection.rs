@@ -37,6 +37,7 @@ pub enum WatcherEvent {
     HmrReload { path: String },
     HmrCssUpdate { path: String },
     HmrJsUpdate { path: String },
+    NotifyUpdate { path: String },
 }
 
 #[derive(Serialize, Clone, Debug)]
@@ -51,15 +52,19 @@ impl From<WatcherEvent> for HmrMessage {
         match event {
             WatcherEvent::HmrReload { path } => HmrMessage {
                 msg_type: "hmr::reload".to_string(),
-                body: path, // relative OK for reload
+                body: format!("/{}", path), // ← FULL PATH!
             },
             WatcherEvent::HmrCssUpdate { path } => HmrMessage {
                 msg_type: "hmr::css_update".to_string(),
-                body: format!("/project/{}", path), // ← FULL PATH!
+                body: format!("/{}", path), // ← FULL PATH!
             },
             WatcherEvent::HmrJsUpdate { path } => HmrMessage {
                 msg_type: "hmr::js_update".to_string(),
-                body: format!("/project/{}", path), // ← FULL PATH!
+                body: format!("/{}", path), // ← FULL PATH!
+            },
+            WatcherEvent::NotifyUpdate { path } => HmrMessage {
+                msg_type: "notify::update".to_string(),
+                body: format!("/{}", path), // ← FULL PATH!
             },
         }
     }

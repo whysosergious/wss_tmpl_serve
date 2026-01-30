@@ -32,14 +32,36 @@ pub fn start_watcher(
             let tx = tx_clone.clone();
             match event {
                 Ok(event) => {
-                    println!("[Watcher] Event: {:?}", event.kind);
-
                     if event.kind.is_modify() || event.kind.is_create() || event.kind.is_remove() {
                         for path in event.paths {
+                            let full_target = project_path_obj.join("target");
+                            if path.starts_with(&full_target) {
+                                // println!("[Watcher] Ignoring target dir: {:?}", path);
+                                continue;
+                            }
+
+                            println!("[Watcher] Event: {:?}", event.kind);
                             println!("[Watcher] Path: {:?}", path);
 
                             if let Ok(relative_path_buf) = path.strip_prefix(&project_path_obj) {
                                 let relative_path = relative_path_buf.to_string_lossy().to_string();
+
+                                // Ignore editor temp/swap files by pattern
+                                let filename = Path::new(&relative_path)
+                                    .file_name()
+                                    .and_then(|n| n.to_str())
+                                    .unwrap_or("");
+
+                                if filename.ends_with('~')
+                                    || filename.ends_with(".swp")
+                                    || filename.ends_with(".swo")
+                                    || filename.ends_with(".tmp")
+                                    || filename.parse::<u32>().is_ok()
+                                // pure numbers like "4913"
+                                {
+                                    println!("[Watcher] Ignoring temp/swap: {}", relative_path);
+                                    continue;
+                                }
 
                                 // DEBOUNCE CHECK
                                 let debounce_key = format!("{:?}", path);
@@ -76,8 +98,9 @@ pub fn start_watcher(
                                         path: relative_path.clone(),
                                     }
                                 } else {
-                                    println!("[Watcher] Ignoring: {}", relative_path);
-                                    continue;
+                                    WatcherEvent::NotifyUpdate {
+                                        path: relative_path.clone(),
+                                    }
                                 };
 
                                 println!("[Watcher] 🚀 Sending: {:?}", watcher_event);

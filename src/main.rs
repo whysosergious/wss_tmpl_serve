@@ -32,7 +32,7 @@ async fn main() -> std::io::Result<()> {
     let port = env::var("PORT").unwrap_or_else(|_| "8080".to_string());
     let addr = format!("{}:{}", host, port);
 
-    let mut project_path = "./project".to_string(); // The directory to watch
+    let mut project_path = "./".to_string(); // The directory to watch
     let canonical_project_path = match std::fs::canonicalize(&project_path) {
         Ok(path) => path.to_string_lossy().to_string(),
         Err(e) => {
@@ -56,10 +56,7 @@ async fn main() -> std::io::Result<()> {
     // Start the file watcher. It will send events to watcher_tx.
     let _watcher = match start_watcher(project_path.clone(), watcher_tx.clone()) {
         Ok(watcher) => {
-            println!(
-                "Started file watcher for project directory: {}",
-                project_path
-            );
+            println!("Started file watcher in: {}", project_path);
             watcher
         }
         Err(e) => {

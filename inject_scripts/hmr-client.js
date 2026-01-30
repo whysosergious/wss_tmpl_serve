@@ -6,10 +6,49 @@ class HMRClient {
   constructor() {
     window.__hmr_cache = window.__hmr_cache || new Map();
     this.lastReloads = new Map();
+    this.reconnectAttempts = 0;
+    this.maxReconnectAttempts = 10;
+    this.reconnectDelay = 1000; // ms, grows exponentially
 
+    this.connect();
+  }
+
+  connect() {
     this.ws = new WebSocket(`ws://${location.host}/ws/`);
     this.ws.binaryType = "arraybuffer";
+
+    this.ws.onopen = () => {
+      console.log("🔗 HMR connected");
+      this.reconnectAttempts = 0;
+      this.reconnectDelay = 1000;
+    };
+
     this.ws.onmessage = (e) => this.handleMsgpack(e.data);
+    this.ws.onclose = () => this.handleDisconnect();
+    this.ws.onerror = (e) => {
+      console.warn("🔌 HMR WS error:", e);
+      this.handleDisconnect();
+    };
+  }
+
+  handleDisconnect() {
+    console.warn("🔌 HMR disconnected, reconnecting...");
+
+    if (this.reconnectAttempts < this.maxReconnectAttempts) {
+      this.reconnectAttempts++;
+      setTimeout(() => {
+        console.log(
+          `🔄 Reconnect attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts}`,
+        );
+        this.connect();
+      }, this.reconnectDelay);
+
+      // Exponential backoff: 1s, 2s, 4s, 8s...
+      this.reconnectDelay = Math.min(this.reconnectDelay * 2, 30000); // cap at 30s
+    } else {
+      console.error("💥 HMR max reconnects reached. Reloading page...");
+      window.location.reload();
+    }
   }
 
   handleMsgpack(arrayBuffer) {
@@ -20,6 +59,7 @@ class HMRClient {
   handleHmrEvent(msg) {
     // Debounce
     const key = `${msg.type}:${msg.body}`;
+    if (!msg.body.startsWith("/project/")) return;
     const now = Date.now();
     if (this.lastReloads.has(key) && now - this.lastReloads.get(key) < 500)
       return;
