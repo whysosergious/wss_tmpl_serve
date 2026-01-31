@@ -34,9 +34,9 @@ enum WsMessage {
 // Update enum to HMR types
 #[derive(Serialize, Clone, Debug)]
 pub enum WatcherEvent {
-    HmrReload { path: String },
-    HmrCssUpdate { path: String },
-    HmrJsUpdate { path: String },
+    HmrReload { path: String, action: String },
+    HmrCssUpdate { path: String, action: String },
+    HmrJsUpdate { path: String, action: String },
     NotifyUpdate { path: String, action: String },
 }
 
@@ -51,33 +51,32 @@ pub struct HmrMessage {
 impl From<WatcherEvent> for HmrMessage {
     fn from(event: WatcherEvent) -> Self {
         match event {
-            WatcherEvent::HmrReload { path } => HmrMessage {
+            WatcherEvent::HmrReload { path, action } => HmrMessage {
                 msg_type: "hmr::reload".to_string(),
-                action: Some("modify".to_string()),
+                action: Some(action),
                 body: format!("/{}", path),
             },
-            WatcherEvent::HmrCssUpdate { path } => HmrMessage {
+            WatcherEvent::HmrCssUpdate { path, action } => HmrMessage {
                 msg_type: "hmr::css_update".to_string(),
-                action: Some("modify".to_string()),
+                action: Some(action),
                 body: format!("/{}", path),
             },
-            WatcherEvent::HmrJsUpdate { path } => HmrMessage {
+            WatcherEvent::HmrJsUpdate { path, action } => HmrMessage {
                 msg_type: "hmr::js_update".to_string(),
-                action: Some("modify".to_string()),
+                action: Some(action),
                 body: format!("/{}", path),
             },
             WatcherEvent::NotifyUpdate { path, action } => {
                 // Detect action from Notify event.kind (pass it through WatcherEvent)
                 HmrMessage {
                     msg_type: "notify::update".to_string(),
-                    action: Some(action), // or derive from event
+                    action: Some(action),
                     body: format!("/{}", path),
                 }
-            }
-            // WatcherEvent::NotifyUpdate { path } => HmrMessage {
-            //     msg_type: "notify::update".to_string(),
-            //     body: format!("/{}", path),
-            // },
+            } // WatcherEvent::NotifyUpdate { path } => HmrMessage {
+              //     msg_type: "notify::update".to_string(),
+              //     body: format!("/{}", path),
+              // },
         }
     }
 }

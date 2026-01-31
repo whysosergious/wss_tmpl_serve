@@ -38,6 +38,9 @@ export class WssFileExplorer extends HTMLElement {
    * @private
    */
   _mutation_observer = null;
+  pendingRefresh = new Set();
+  debounceTimer = null;
+  debounceDelay = 100;
 
   /**
    * @private
@@ -154,6 +157,8 @@ export class WssFileExplorer extends HTMLElement {
     });
 
     this._load_state();
+
+    sh.event.on("fe::update", this.handleFsUpdate.bind(this));
   }
 
   /**
@@ -162,6 +167,7 @@ export class WssFileExplorer extends HTMLElement {
   disconnectedCallback() {
     this._mutation_observer?.disconnect();
     this._mutation_observer = null;
+    sh.event.off("fe::update", this.handleFsUpdate);
   }
 
   /**
@@ -186,6 +192,55 @@ export class WssFileExplorer extends HTMLElement {
       console.warn("Failed to load/restore state:", e);
     }
   }
+
+  handleFsUpdate(path) {
+    // Extract parent path for refresh
+    const parentPath = path.split("/").slice(0, -1).join("/") + "/";
+
+    console.log(
+      `📁 FS "update" ${path} → refresh ${parentPath}`,
+      this.pendingRefresh,
+    );
+
+    // Add to pending refresh set
+    this.pendingRefresh.add(parentPath);
+
+    // Debounce: refresh ALL pending parents at once
+    clearTimeout(this.debounceTimer);
+    this.debounceTimer = setTimeout(() => {
+      this.flushRefresh();
+    }, this.debounceDelay);
+  }
+
+  async flushRefresh() {
+    if (this.pendingRefresh.size === 0) return;
+
+    console.log(this.pendingRefresh);
+    // Merge with open paths + sort by length (parents first)
+    const allPaths = new Set([
+      ...this.pendingRefresh,
+      ...this._getOpenDirectoryPaths(),
+    ]);
+    const sortedPaths = Array.from(allPaths).sort(
+      (a, b) => a.length - b.length,
+    ); // longest first (deepest dirs)
+
+    console.log(`🔄 Refreshing ${sortedPaths.length} paths:`, sortedPaths);
+
+    // Sequential refresh (parents → children)
+    for (const path of sortedPaths) {
+      await this.refresh_path(path);
+    }
+
+    this.pendingRefresh.clear();
+  }
+
+  // Call this when user manually opens a dir
+  openPath(path) {
+    this.openPaths.add(path);
+    this.refresh_path(path);
+  }
+
   /** @private */
   attachContextMenu() {
     /** @type {WssContextMenuAPI} */

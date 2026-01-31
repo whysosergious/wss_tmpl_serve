@@ -167,7 +167,7 @@ export class WssEditor extends HTMLElement {
 
     const fileExplorer = document.querySelector("wss-file-explorer");
     if (fileExplorer) {
-      fileExplorer.refresh_path(this.path);
+      // fileExplorer.refresh_path(this.path);
     }
   }
 

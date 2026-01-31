@@ -78,6 +78,15 @@ pub fn start_watcher(
                                 let debounce_key = format!("{:?}", path);
                                 let now = Instant::now();
                                 let debounce_duration = Duration::from_millis(250);
+                                let action = if event.kind.is_create() {
+                                    "create".to_string()
+                                } else if event.kind.is_modify() {
+                                    "modify".to_string()
+                                } else if event.kind.is_remove() {
+                                    "remove".to_string()
+                                } else {
+                                    "other".to_string()
+                                };
 
                                 {
                                     let mut map_guard = debounce_map.lock().unwrap();
@@ -93,6 +102,7 @@ pub fn start_watcher(
                                 let watcher_event = if relative_path.ends_with(".css") {
                                     WatcherEvent::HmrCssUpdate {
                                         path: relative_path.clone(),
+                                        action: action,
                                     }
                                 } else if relative_path.ends_with(".js")
                                     || relative_path.ends_with(".mjs")
@@ -103,10 +113,12 @@ pub fn start_watcher(
                                 {
                                     WatcherEvent::HmrJsUpdate {
                                         path: relative_path.clone(),
+                                        action: action,
                                     }
                                 } else if relative_path.ends_with(".html") {
                                     WatcherEvent::HmrReload {
                                         path: relative_path.clone(),
+                                        action: action,
                                     }
                                 } else {
                                     let path_for_notify =
@@ -115,15 +127,7 @@ pub fn start_watcher(
                                         } else {
                                             relative_path
                                         };
-                                    let action = if event.kind.is_create() {
-                                        "create".to_string()
-                                    } else if event.kind.is_modify() {
-                                        "modify".to_string()
-                                    } else if event.kind.is_remove() {
-                                        "remove".to_string()
-                                    } else {
-                                        "other".to_string()
-                                    };
+                                    println!("AAAAAAAAAAA {}", action);
                                     WatcherEvent::NotifyUpdate {
                                         path: path_for_notify,
                                         action: action,

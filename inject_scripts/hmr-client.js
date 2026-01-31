@@ -59,7 +59,8 @@ class HMRClient {
   handleHmrEvent(msg) {
     // Debounce
     const key = `${msg.type}:${msg.body}`;
-    if (!msg.body.startsWith("/project/")) return;
+    if (msg.action === "remove" || !msg.body.startsWith("/project/")) return;
+
     const now = Date.now();
     if (this.lastReloads.has(key) && now - this.lastReloads.get(key) < 500)
       return;
@@ -93,7 +94,7 @@ class HMRClient {
     // Bust ESM cache by appending timestamp
     const hmrUrl = url + (url.includes("?") ? "&" : "?") + "t=" + Date.now();
 
-    console.log("📦 HMR importing:", hmrUrl);
+    console.log("📦 HMR mporting:", hmrUrl);
 
     import(hmrUrl)
       .then((mod) => {
