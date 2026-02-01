@@ -16,18 +16,23 @@ export class WssConsole extends HTMLElement {
           overflow: auto;
         }
         .log-entry {
+          position: relative;
           padding: 2px 8px;
           border-bottom: 1px solid #252526;
           white-space: pre-wrap;
           display: flex;
           gap: 8px;
         }
-        .log-content { flex: 1; }
+        .log-content { flex: 1; word-break: break-word }
         .log-meta { 
             color: #666; 
             font-size: 0.9em; 
             text-align: right;
             user-select: none;
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background-color: #1e1e1ef2;
         }
         .log-meta.anonymous { color: #999; font-style: italic; }
         .log-error { color: #f48771; }

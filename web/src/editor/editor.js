@@ -69,6 +69,7 @@ export class WssEditor extends HTMLElement {
         this.theme.of(oneDark),
         this.language.of([]),
         autocompletion(),
+        EditorView.lineWrapping,
         // code_lens(),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
