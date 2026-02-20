@@ -1,6 +1,9 @@
 use actix_web::{get, web, HttpResponse, Responder, Result};
 use mime_guess::from_path;
-use std::{fs, path::PathBuf};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 use oxc_allocator::Allocator;
 use oxc_codegen::{Codegen, CodegenOptions};
@@ -27,7 +30,13 @@ async fn project(filename: web::Path<String>) -> Result<HttpResponse> {
     let mut path = PathBuf::from(PROJECT_ROOT).join(filename.as_str());
 
     if path.is_dir() {
-        path.push("index.html");
+        if let Some(index_path) = find_preferred_index(&path) {
+            path = index_path;
+        } else {
+            return Ok(
+                HttpResponse::NotFound().body(format!("No index file in dir: {}", path.display()))
+            );
+        }
     }
 
     if !path.exists() {
@@ -37,7 +46,6 @@ async fn project(filename: web::Path<String>) -> Result<HttpResponse> {
     let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("");
 
     match ext {
-        // ----- TS / TSX / JSX → JS via oxc -----
         "ts" | "tsx" | "jsx" => {
             let source = fs::read_to_string(&path)?;
             let js = transpile_ts_to_js(&source, &path)?;
@@ -45,16 +53,13 @@ async fn project(filename: web::Path<String>) -> Result<HttpResponse> {
                 .content_type("application/javascript")
                 .body(js))
         }
-        // ----- JS: serve as real JS -----
         "js" => {
             let source = fs::read_to_string(&path)?;
             Ok(HttpResponse::Ok()
                 .content_type("application/javascript")
                 .body(source))
         }
-
-        // ----- HTML: inject console + HMR into HEAD -----
-        "html" => {
+        "html" | "htm" => {
             let content = fs::read_to_string(&path)?;
 
             let head_injection = inject_head_scripts();
@@ -65,8 +70,6 @@ async fn project(filename: web::Path<String>) -> Result<HttpResponse> {
                 .content_type("text/html")
                 .body(modified_content))
         }
-
-        // ----- Everything else: raw file -----
         _ => {
             let content = fs::read(&path)?;
             let mime_type = from_path(&path).first_or_text_plain();
@@ -76,6 +79,74 @@ async fn project(filename: web::Path<String>) -> Result<HttpResponse> {
         }
     }
 }
+
+fn find_preferred_index(dir: &Path) -> Option<PathBuf> {
+    let candidates = ["main.html", "main.htm", "index.html", "index.htm"];
+
+    for candidate in candidates {
+        let mut candidate_path = dir.to_path_buf();
+        candidate_path.push(candidate);
+        if candidate_path.exists() {
+            return Some(candidate_path);
+        }
+    }
+    None
+}
+
+// #[get("/project/{filename:.*}")]
+// async fn project(filename: web::Path<String>) -> Result<HttpResponse> {
+//     let mut path = PathBuf::from(PROJECT_ROOT).join(filename.as_str());
+//
+//     if path.is_dir() {
+//         path.push("index.html");
+//     }
+//
+//     if !path.exists() {
+//         return Ok(HttpResponse::NotFound().body(format!("File not found: {}", path.display())));
+//     }
+//
+//     let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("");
+//
+//     match ext {
+//         // ----- TS / TSX / JSX → JS via oxc -----
+//         "ts" | "tsx" | "jsx" => {
+//             let source = fs::read_to_string(&path)?;
+//             let js = transpile_ts_to_js(&source, &path)?;
+//             Ok(HttpResponse::Ok()
+//                 .content_type("application/javascript")
+//                 .body(js))
+//         }
+//         // ----- JS: serve as real JS -----
+//         "js" => {
+//             let source = fs::read_to_string(&path)?;
+//             Ok(HttpResponse::Ok()
+//                 .content_type("application/javascript")
+//                 .body(source))
+//         }
+//
+//         // ----- HTML: inject console + HMR into HEAD -----
+//         "html" => {
+//             let content = fs::read_to_string(&path)?;
+//
+//             let head_injection = inject_head_scripts();
+//             let modified_content =
+//                 content.replace("</head>", &format!("\n{}\n</head>", head_injection));
+//
+//             Ok(HttpResponse::Ok()
+//                 .content_type("text/html")
+//                 .body(modified_content))
+//         }
+//
+//         // ----- Everything else: raw file -----
+//         _ => {
+//             let content = fs::read(&path)?;
+//             let mime_type = from_path(&path).first_or_text_plain();
+//             Ok(HttpResponse::Ok()
+//                 .content_type(mime_type.as_ref())
+//                 .body(content))
+//         }
+//     }
+// }
 
 fn inject_head_scripts() -> String {
     // lib.js (msgpack) first, then injected scripts
